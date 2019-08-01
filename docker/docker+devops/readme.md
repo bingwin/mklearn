@@ -3,8 +3,10 @@
 *   [第2章 Docker环境的各种搭建方法](#第2章-Docker环境的各种搭建方法)
     *   [Docker安装简介](#Docker安装简介)
     *   [在ubuntu上安装Docker](#在ubuntu上安装Docker)
+    *   [Vagrantfile](#Vagrantfile)
     *   [VirtualBox安装](#VirtualBox安装)
     *   [Vagrant安装Windows](#Vagrant安装Windows)
+    *   [在CentOS上安装Docker](#在CentOS上安装Docker)
     *   [Docker Machine的本地使用](#Docker-Machine的本地使用)
     *   [Docker Machine在阿里云上的使用](#Docker-Machine在阿里云上的使用)
     *   [Docker Machine在亚马逊AWS云上的使用](#Docker-Machine在亚马逊AWS云上的使用)
@@ -214,37 +216,97 @@ docker
 
     https://docs.docker.com/install/linux/docker-ce/ubuntu/
     
+## 在CentOS上安装Docker
+
+删除老版本
+
+    $ sudo yum remove docker \
+                      docker-client \
+                      docker-client-latest \
+                      docker-common \
+                      docker-latest \
+                      docker-latest-logrotate \
+                      docker-logrotate \
+                      docker-engine
+
+安装最新docker
+
+    $ sudo yum install -y yum-utils \
+      device-mapper-persistent-data \
+      lvm2
+    
+添加存储库
+
+    $ sudo yum-config-manager \
+        --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
+        
+安装 docker-ce
+
+    sudo yum install docker-ce docker-ce-cli containerd.io
+    
+启动docker
+    
+    sudo systemctl start docker
+    sudo docker version
+    
+测试运行
+
+    sudo docker run hello-world
+    
+## Vagrantfile
+
+Vagrantfile可以定义虚拟机启动后安装一些软件
+    
 ## VirtualBox安装
 
 文档 https://www.virtualbox.org/wiki/Downloads
 
 ## Vagrant安装Windows
 
+我们可以手动创建虚拟机,但是操作繁琐,所有用Vagrant更加方便快速
+
 文档 https://www.vagrantup.com/downloads.html
 
 通过 Vagrant 创建虚拟机,必须管理员运行cmd
     
     mkdir centos7
-    cd centos7
+    cd centos7 # 当前目录
     vagrant init centos/7 # 初始化一台机器 Vagrantfile 描述了创建机器内容
     vargrant up # 创建一台centos7机器
     vargrant ssh # 进入虚拟机
+    exit # 退出虚拟机
+    vargrant status # 显示当前运行虚拟机
+    vargrant halt # 停止虚拟机
+    vargrant status # 显示当前运行虚拟机
+    vargrant destroy # 删除虚拟机
     
 ## Docker Machine的本地使用
 
-首先安装docker-machine 
+文档 https://docs.docker.com/machine/install-machine/#install-machine-directly
 
-    文档 https://docs.docker.com/machine/install-machine/#install-machine-directly
+文档 https://docs.docker.com/machine/overview/
+
+Docker Machine是一个用于配置和管理Dockerized主机（带有Docker Engine的主机）的工具
+
+Linux安装docker-machine
     
     $ base=https://github.com/docker/machine/releases/download/v0.16.0 &&
       curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine &&
       sudo install /tmp/docker-machine /usr/local/bin/docker-machine
+      
+使用Git BASH运行Windows
+
+    $ base=https://github.com/docker/machine/releases/download/v0.16.0 &&
+      mkdir -p "$HOME/bin" &&
+      curl -L $base/docker-machine-Windows-x86_64.exe > "$HOME/bin/docker-machine.exe" &&
+      chmod +x "$HOME/bin/docker-machine.exe"
 
 查看版本
 
     docker-machine version
     
-创建一台虚拟机
+创建一台已经安装好docker虚拟机
 
     docker-machine create demo
     
@@ -256,7 +318,16 @@ docker
 
     docker-machine ssh demo
     
+停止一个docker虚拟机
 
+    docker-machine stop demo
+    
+远程管理虚拟机docker
+
+    docker-machine env demo
+    eval $("C:\Users\aiyin\bin\docker-machine.exe" env demo)
+    docker version
+    
 ## Docker Machine在阿里云上的使用
 
 ## Docker Machine在亚马逊AWS云上的使用
