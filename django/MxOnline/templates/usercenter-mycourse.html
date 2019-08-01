@@ -1,0 +1,45 @@
+{% extends 'usercenter-base.html' %}
+{% block title %}我的课程{% endblock %}
+{% block custom_baread %}
+    <section>
+        <div class="wp">
+            <ul  class="crumbs">
+                <li><a href="{% url 'index' %}">首页</a>></li>
+                <li><a href="{% url 'users:user_info' %}">个人中心</a>></li>
+                <li>我的课程</li>
+            </ul>
+        </div>
+    </section>
+{% endblock %}
+
+{% block rigth_content %}
+    <div class="right" >
+		<div class="personal_des Releasecont">
+			<div class="head">
+				<h1>我的课程</h1>
+			</div>
+		</div>
+		<div class="personal_des permessage">
+			<div class="companycenter">
+				<div class="group_list brief">
+                    {% for user_course in user_courses %}
+                    <div class="module1_5 box">
+                            <a href="{% url 'course:course_detail' user_course.Course.id%}">
+                                <img width="214" height="190" class="scrollLoading" src="{{ MEDIA_URL }}{{ user_course.Course.image }}"/>
+                            </a>
+                            <div class="des">
+                                <a href="{% url 'course:course_detail' user_course.Course.id%}"><h2>{{ user_course.Course.name }}</h2></a>
+                                <span class="fl">课时：<i class="key">{{ user_course.Course.learn_times }}</i></span>
+                                <span class="fr">学习人数：{{ user_course.Course.students }}</span>
+                            </div>
+                            <div class="bottom">
+                                <span class="fl">{{ user_course.Course.course_org.name }}</span>
+                                <span class="star fr  notlogin" data-favid="15">0</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+				</div>
+			</div>
+		</div>
+	</div>
+{% endblock %}
