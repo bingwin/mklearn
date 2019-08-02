@@ -330,6 +330,16 @@ Linux安装docker-machine
     
 ## Docker Machine在阿里云上的使用
 
+    文档 https://docs.docker.com/machine/get-started-cloud/
+
+Docker Machine驱动程序插件可用于许多云平台，因此您可以使用Machine来配置云主机。使用Docker Machine进行配置时，可以创建安装了Docker Engine的云主机。
+
+    第三方驱动 https://github.com/docker/docker.github.io/blob/master/machine/AVAILABLE_DRIVER_PLUGINS.md
+
+下载 Aliyun ECS
+
+    https://github.com/AliyunContainerService/docker-machine-driver-aliyunecs
+
 ## Docker Machine在亚马逊AWS云上的使用
 
 ## Docker Playground
