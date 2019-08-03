@@ -1194,6 +1194,10 @@ docker 官方的Dockerfile默认有Volume,查看本地的volume
 
     docker run -d -v mysql:/var/lib/mysql --name mysql mysql
     
+再次查询volumes,发现volumes的名字就成为了mysql
+
+    docker volume ls
+    
 如果在起一个mysql容器,名称也是mysql:/var/lib/mysql,也会共用一个volume
 
 ## 数据持久化之Bind Mouting
