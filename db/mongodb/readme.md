@@ -765,17 +765,263 @@ $type 匹配字段类型符合查询值的文档
         
     读取包含一个在1000000至2000000之间,和一个在20000000至30000000之间的联系电话的银行账户文档
     
-        
+        db.accounts.find(
+            contact:{$all:[
+                {$elemMatch:{$gt: "100000", $lt: "200000"}},
+                {$elemMatch:{$gt: "200000", $lt: "300000"}},
+            ]}
+        )
 
 ## 运算操作符
 
+    $regex 匹配满足正则表达式的文档
+    
+    语法:
+        {<field>: {: /pattgern/,: '<options>'}}
+        {<field>: {: /pattgern/<options>}}
+        
+    兼容 pcre v8.41正则表达式库
+    
+    在和$in操作符一起使用是,只能使用/pattgern/<options>
+    
+    读取用户姓名以c或者j开头的银行账户的文档
+        db.accounts.find({name:{$in:[ /^c/, /^j/ ]}})
+        
+    读取用户姓名包含LIE(不区分大小写)的银行账户文档
+        db.accounts.find({name:{$regex: /LIE/, $options: 'i'}})
+        
 ## 文档游标
+
+db.collection.find()返回一个文档集合游标
+
+在不迭代游标的情况下,只列出前20个文档
+
+    var myCursor = db.accounts.find()
     
+    myCursor
+        myCursor是一个变量
     
+    打印出前20个文档
     
+    { "_id" : "account1", "name" : "alice", "balance" : 100 }
+    { "_id" : ObjectId("5d45a6153f559e4e1a7c6a5b"), "name" : "bob", "balance" : 50 }
+    { "_id" : ObjectId("5d45aa393f559e4e1a7c6a5c"), "name" : "charlie", "balance" : 500 }
+    { "_id" : ObjectId("5d45aa393f559e4e1a7c6a5d"), "name" : "david", "balance" : 200 }
+    { "_id" : ObjectId("5d45ac6d3f559e4e1a7c6a5f"), "name" : "david", "balance" : 200 }
+    { "_id" : ObjectId("5d45af2d3f559e4e1a7c6a60"), "name" : "george", "balance" : 10000 }
+    { "_id" : { "accountNo" : "001", "type" : "savings" }, "name" : "george", "balance" : 10000 }
+    { "_id" : { "type" : "savings", "accountNo" : "001" }, "name" : "irenne", "balance" : 80 }
+    { "_id" : ObjectId("5d469d60e11da07278ffcb7b"), "name" : "jack", "balance" : 20000, "contact" : [ "1111111", "Alabama", "US" ] }
+    { "_id" : ObjectId("5d469d60e11da07278ffcb7c"), "name" : "karen", "balance" : 2500, "contact" : [ [ "22222222", "3333333" ], "Beijing", "China" ] }
+    { "_id" : ObjectId("5d46a26db5af1b6338cbc574"), "name" : "jack", "balance" : 20000, "contact" : [ 1000000, "Alabama", "US" ] }
+    { "_id" : ObjectId("5d46a26db5af1b6338cbc575"), "name" : "karen", "balance" : 2500, "contact" : [ [ "22222222", "3333333" ], "Beijing", "China" ] }
+
+我们也可以使用游标的下标直接访问文档集合中的某个文档
+
+    var myCursor = db.accounts.find()
+    myCursor[1]
     
+    {
+        "_id" : ObjectId("5d45a6153f559e4e1a7c6a5b"),
+        "name" : "bob",
+        "balance" : 50
+    }
+
+游标遍历完所有的文档后,或者在10分钟之后,游标便会自动关闭
+
+可以使用 noCursorTimeout()函数来保持游标一直有效
+
+    var myCursor = db.accounts.find().noCursorTimeout()
     
+在这之后,在不遍历游标的情况下,你需要主动关闭游标
+
+    myCursor.close()
     
+## 文档游标函数
+
+cursor.hasNext() 是否有下一个游标
+
+cursor.next() 下一个游标
+
+遍历游标
+
+    var myCursor = db.accounts.find({name: "george"});
+    while( myCursor.hasNext()){
+        printjson(myCursor.next());
+    }
     
+更方便的遍历游标 cursor.forEach(<function>)
+
+    var myCursor = db.accounts.find({name: "george"});
+    myCursor.forEach(printjson)
     
+cursor.limit(<number>)只是返回要求的文档
+
+    db.accounts.find({name: "george"}).limit(1);
+
+cursor.skip(<offset>)跳过第一篇,返回第一篇之后的文档
+
+    db.accounts.find({name: "george"}).skip(1);
     
+使用cursor.limit(0)会返回什么结果呢?
+    
+    db.accounts.find({name: "george"}).limit(0);
+    
+    证明:不使用limit操作
+    
+cursor.count(<applySkipLimit>)
+
+默认情况下,<applySkipLimit>为false,即cursor.count()不会考虑cursor.skip和cursor.limit的效果
+
+    db.accounts.find({name: "george"}).limit(1).count();
+    返回
+        2
+    db.accounts.find({name: "george"}).limit(1).count(true);
+    返回
+        1
+        
+在不提供筛选条件时, cursor.count()会从集合的元数据Metedate中取得结果
+
+    db.accounts.find().count();
+    
+当数据库分布式结构较为复杂时,元数据中的文档数量可能不准确,在这种情况下,应该避免应用不提供筛选条件的cursor.count()函数,而使用聚合管道来计算的文档数量
+
+cursor.sort(<document>)排序
+
+    这里的<document>定义了排序的要求
+    语法: {field: ordering} 1表示有小及大的正向排序, -1表示逆向排序
+    
+    按照余额从到小,用户姓名按字母排序的方式排列银行账户文档
+        db.accounts.find().sort({balance: -1, name: 1});
+    
+    读取余额最大的银行账户文档
+        db.accounts.find().sort({balance: -1}).limit(1);
+        
+这里要提到的是执行顺序
+
+    cursor.skip(), 
+    cursor.limit(),
+    cursor.sort()
+    
+cursor.skip()在cursor.limit()之前执行
+
+    db.accounts.find().limit(5).skip(3)
+    
+    按照正常执行顺序应该返回2篇文档,但是这里返回了5篇文档
+    
+cursor.sort()在cursor.skip()和cursor.limit()之前执行
+
+    db.accounts.find().limit(5).skip(3).sort({balance: -1})
+    
+    其实执行顺序是
+    
+    db.accounts.find().sort({balance: -1}).skip(3).limit(5)
+    
+## 文档投影
+
+db.accounts.find(<query>, <projection>)
+
+不使用投影文档,db.accounts.find()返回符合筛选条件的完整的文档,而使用投影可以有选择的返回文档中的部分字段
+
+语法:{field: inclusion}
+
+1.表示返回字段, 0表示不返回字段
+
+只返回银行账户文档中的用户姓名
+
+    db.accounts.find({}, {name: 1})
+    
+只返回银行账户文档中的用户姓名(不包括主键)
+
+    db.accounts.find({}, {name: 1, _id:0})
+    
+不返回银行账户文档中的用户姓名(不返回主键)
+
+    db.accounts.find({}, {name: 0, _id:0})
+    
+注意点
+
+    db.accounts.find({}, {name: 1, balance: 0 _id:0})
+    报错
+    除了文档主键之外,我们不可以在投影文档中混合使用包含和不包含这两种投影操作.
+    
+在数组字段上使用投影$slice
+
+    $slice操作符可以返回数组字段中的部分元素
+    
+    db.accounts.find({}, {_id: 0, name:1, contact: 1})
+    
+    返回数组中第一个元素slice: 1
+    db.accounts.find({}, {_id: 0, name:1, contact: {$slice: 1}})
+    
+    返回数组中倒数一个元素slice: -1
+    db.accounts.find({}, {_id: 0, name:1, contact: {$slice: -1}})
+    
+    返回数组中倒数2个元素slice: -2
+    db.accounts.find({}, {_id: 0, name:1, contact: {$slice: -2}})
+    
+    slice: [1, 2] 1是skip操作, 2是limit操作
+    db.accounts.find({}, {_id: 0, name:1, contact: {$slice: [1, 2]}})
+    
+在数组字段上使用投影$elemMatch
+
+    $elemMatch和$操作符可以返回数组字段中满足筛选条件的第一个元素
+        db.accounts.find({}, {
+            _id:0, name:1,
+            contact: {$elemMatch:{$gt: "Alabama"}}
+        })
+    
+    一般情况下我们会先定义筛选条件,在投影时没有新的筛选条件,就可以用$,不需要自定义$elemMatch筛选
+        db.accounts.find(
+            {contact: {$gt: "Alabama"}}, 
+            { _id:0, name:1,"contact.$": 1}
+        )
+        
+## 更新文档
+
+### 更新整篇文档
+
+db.collection.update()
+
+语法:db.<collection>.update(<query>, <update>, <options>)
+
+    <query> 文档定义了更新操作筛选文档的条件
+    <update> 文档定义了更新的内容
+    <options> 文档声明了一些更新操作的参数
+    
+将alice的账户余额更改为123
+
+    db.accounts.update({name: "alice"}, {name: "alice", balance:123})
+    返回数据
+    WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+        nMatched 符合更新的文档多少篇
+        nModified 更新了多少文档
+        
+几个需要注意的问题
+
+    文档主键_id是不可以更改的
+    我们之前使用的<update>文档并没有包含_id字段
+    在这种情况下,文档的_id字段自然不会被更改
+    如果我们在<update>文档包含_id字段,则_id值一定要和被更新的文档_id值保持一致
+    
+查询账户余额在20到80之间的文档
+
+    db.accounts.find({balance:{$gt:20, $lt: 500}})
+        发现查询出5篇文档
+    
+    在更新文档试试
+    db.accounts.update({balance:{$gt:20, $lt: 500}}, {name: "bill", balance: 50, gender: "M"})
+        发现只更新了1篇文档
+        
+    也就是说更新整片文档的操作只能应用在单一文档上
+    
+### 更新特定字段
+
+    $set 更新或新增字段
+    $unset 删除字段
+    $rename 重命名字段
+    $inc 加减字段值
+    $mul 相乘字段值
+    $min 比较减小字段值
+    $max 比较增大字段值
+     
