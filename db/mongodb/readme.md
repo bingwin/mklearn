@@ -1024,4 +1024,338 @@ db.collection.update()
     $mul 相乘字段值
     $min 比较减小字段值
     $max 比较增大字段值
-     
+    
+$set 更新或新增字段
+
+语法: {$set: {<field1>:<values1>, ....}}
+
+    查看jack的银行账户文档
+    db.accounts.find({name: "jack"}).pretty()
+    
+    更新jack的银行账户余额和开户信息
+    db.accounts.update(
+            {name: "jack"},
+            {$set: {
+                balance: 3000,
+                info: {
+                    dateOpened: new Date("2016-05-18T16:00:00Z"),
+                    branch: "branch1"
+                }
+            }}
+        )
+        
+    返回
+    WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+    
+    更新或新增内嵌文档的字段,更新jack的银行账户的开户时间
+    db.accounts.update(
+        {name: "jack"},
+        {$set: {
+            "info.dateOpened": new Date("2017-05-18T16:00:00Z"),
+        }}
+    )
+    
+    更新或新增数组内字段
+    db.accounts.update(
+        {name: "jack"},
+        {$set: {
+            "contact.0": "66666666",
+        }}
+    )
+    
+    新增数组内字段
+    db.accounts.update(
+        {name: "jack"},
+        {$set: {
+            "contact.3": "new contact",
+        }}
+    )
+    
+    如果数组元素是5 contact.5
+    db.accounts.update(
+        {name: "jack"},
+        {$set: {
+            "contact.5": "new contact",
+        }}
+    )
+    
+        返回 ,发现是长度是6位,但是地5位是null
+            "contact" : [
+                "66666666",
+                "Alabama",
+                "US",
+                "new contact",
+                null,
+                "new contact"
+            ],
+
+如果像现有数组字段范围以外的位置添加新值,数组字段的长度会扩大.未被赋值的数组成员将被设置为null
+
+$unset 删除字段
+
+语法: {$unset: {<field1>: "", ....}}
+
+    删除jack的银行余额和开户地点
+    
+        db.accounts.update(
+            {name: "jack"},
+            {$unset: {
+                balance: "",
+                "info.branch": ""
+            }}
+        )
+    
+        其实$unset命令中赋值""对操作结果并没有任何影响
+    
+        "info.branch": "dasdada" 也会删除这个字段
+    
+        如果$unset命令中字段根本不存在,那么文档内容将保持不变
+    
+    删除数组内的字段
+    
+        db.accounts.update(
+            {name: "jack"},
+            {$unset: {
+                "contact.0": ""
+            }}
+        )
+        
+        当使用$unset 删除字段数组字段中的某一个元素时,这个元素不会被删除,只会被赋以null值,而数组的长度不会改变
+        
+$rename 重命名字段
+
+语法: {$rename: {<field1>: <newName1>, <field1>: <newName2>, ....}}
+
+    如果 $rename 命令要重命名的字段并不存在,那么文档内容不会被改变
+    
+        db.accounts.update(
+            {name: "jack"},
+            {$rename: {
+                "notExist": "name"
+            }}
+        )
+        
+    如果新的字段已经存在,那么原有的这个字段会被覆盖
+    
+        db.accounts.update(
+            {name: "jack"},
+            {$rename: {
+                "name": "contact"
+            }}
+        )
+        
+    返回
+    
+        > db.accounts.find({contact: "jack"}).pretty()
+        {
+            "_id" : ObjectId("5d469d60e11da07278ffcb7b"),
+            "contact" : "jack",
+            "info" : {
+                "dateOpened" : ISODate("2017-05-18T16:00:00Z")
+            }
+        }
+        > 
+        
+    当$rename命令中的新字段存在的时候,$rename命令会先$unset新旧字段,然后在$set新字段
+
+    重命名内嵌文档的字段
+    
+    更新karen的银行账户的开户时间和联系方式
+    
+        db.accounts.update(
+            {name: "karen"},
+            {$set:{
+                info: {
+                    "dateOpened" : new Date("2017-05-18T16:00:00Z"),
+                    "branch" : "branch1"
+                },
+                "contact.3": {
+                    primaryEmail: "xxx@gmail.com",
+                    secondaryEmail: "yyy@gmail.com"
+                }
+            }}
+        )
+        
+        db.accounts.find({name: "karen"}).pretty()
+        
+    更新账户余额和开户地点字段在文档中的位置
+    
+        db.accounts.update(
+            {name: "karen"},
+            { $rename:
+                {
+                    "info.branch": "branch",
+                    "balance": "info.balance"
+                }
+            }
+        )
+    
+    重命名数组中内嵌文档的字段,发现$rename命令中的旧字段和新字段都不可以指向数组元素.
+    
+        db.accounts.update(
+            {name: "karen"},
+            { $rename:
+                {
+                    "contact.3.primaryEmail": "primaryEmail"
+                }
+            }
+        )
+        
+    返回报错
+        The source field cannot be an array element,
+
+$inc 加减字段值
+
+语法: {$inc: {<field1>: <amount1>, ....}}
+
+    
+    更新david的账户余额
+
+        db.accounts.update(
+            {name: "david"},
+            {$inc:{
+                balance: -0.5
+            }}
+        )
+        
+    返回
+    
+        > db.accounts.find({name: "david"}).pretty()
+        {
+            "_id" : ObjectId("5d45aa393f559e4e1a7c6a5d"),
+            "name" : "david",
+            "balance" : 199.5
+        }
+        
+    $inc如果在非数字字段上会报错
+    
+    $inc如果更新的字段不存在,会更新加入文档中
+        
+$mul 相乘字段值
+
+语法:{$mul: {<field1>: <number1>, ....}}
+
+    更新david的账户余额
+
+        db.accounts.update(
+            {name: "david"},
+            {$mul:{
+                balance: -0.5
+            }}
+        )
+    
+    返回
+    
+        > db.accounts.find({name: "david"}).pretty()
+        {
+            "_id" : ObjectId("5d45aa393f559e4e1a7c6a5d"),
+            "name" : "david",
+            "balance" : -99.75
+        }
+
+    $mul如果在非数字字段上会报错
+    
+    $mul如果更新的字段不存在,会更新加入文档中
+
+$min 比较减小字段值
+
+语法:{$mul: {<field1>: <value1>, ....}}
+
+    原数据:
+
+    > db.accounts.find({name: "david"}).pretty()
+    {
+        "_id" : ObjectId("5d45aa393f559e4e1a7c6a5d"),
+        "name" : "david",
+        "balance" : -99.75
+    }
+
+
+    更新karen的银行账户文档
+    
+        db.accounts.update(
+            {name: "david"},
+            {$min:{
+                balance: 5000
+            }}
+        )
+        
+    返回不变5000大于-99.75
+    
+    如果被更新的字段不存在,$min命令会创建字段,并且将字段值设为命令中更新值
+
+$max 比较增大字段值
+
+    db.accounts.update(
+        {name: "david"},
+        {$max:{
+            balance: 5000
+        }}
+    )
+    
+    返回 balance: 5000
+    
+    如果被更新的字段不存在,$max命令会创建字段,并且将字段值设为命令中更新值
+
+特殊情况
+
+    db.accounts.update(
+        {name: "david"},
+        {$max:{
+            balance: null
+        }}
+    )
+    
+    返回 balance: null
+
+![img]( ./img/1.png "确定开发技术栈")
+
+##数组更新操作符
+
+
+#第4章 MongoDB基本操作进阶之聚合
+
+聚合操作是指: 将一系列不同的操作按照一定顺序应用到数据库的文档中
+
+数据库有4篇文档要知道多少篇文档 count
+
+![img]( ./img/2.png "确定开发技术栈")
+
+文档属于哪些客户distinct
+
+![img]( ./img/3.png "确定开发技术栈")
+
+文档属于alice文档中余额总和
+
+![img]( ./img/4.png "确定开发技术栈")
+
+    单一用途的聚合方法
+    Map Reduce
+    聚合管道 db.collection.aggregate()
+    
+聚合表达式
+
+    用来操作输入文档的"公式"
+    经聚合表达式计算出的值可以被赋予输出文档中的字段
+    字段路径,系统变量,文本,表达式对象,操作符
+    
+聚合阶段
+
+    聚合阶段有顺序的排列在聚合管道中
+    绝大多数聚合阶段反复出现($out和$geoNear除外)
+    数据库层面和集合层面
+    
+聚合操作符
+
+    用来构建聚合表达式
+    {<operator>:[<argument1>, <argument2> ....]}
+    {<operator>:<argument1>}
+    
+
+#第5章 论MongoDB中索引的重要性
+
+#第10章 MongoDB之数据安全
+
+#第11章 MongoDB之管理工具
+
+#第12章 MongoDB之故障诊断
