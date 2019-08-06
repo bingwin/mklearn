@@ -1349,7 +1349,338 @@ $max 比较增大字段值
     用来构建聚合表达式
     {<operator>:[<argument1>, <argument2> ....]}
     {<operator>:<argument1>}
+ 
+## 最常用的聚合管道
+
+语法: db.<collection>.aggregate(<pipleline>, <options>)
+
+    <pipleline>文档定义了操作中使用的聚合管道阶段和聚合操作符
+    <options>文档声明了一些聚合操作的参数
     
+聚合表达式
+
+### 字段路径表达式
+
+    $<field>-使用$来指示字段路径
+    $<field>.<sub-field>-使用$和.来指示内嵌文档字段路劲
+    $name -指示银行文档中客户姓名的字段
+    $info.dateOpened-指示银行账户文档中开户日期的字段
+    
+### 系统变量表达式
+
+    $$<variable>-使用$$来指示系统变量
+    $$CURRENT-指示管道中当前操作的文档
+        - $$CURRENT.<field>和$<field>等等效的
+        
+### 常量表达式
+    $literal: <vlaue> - 指示常量<value>
+    $literal: "$name" - 指示常量字符串 "$name"
+                      - 这里的$被当做常量处理,而不是字段路劲表达式
+                          
+### 聚合管道阶段
+
+$project - 对输入文档进行再次投影
+
+    先创建几个文档
+    db.accounts.insertMany([
+        {
+            name: {firstName: "alice", lastName: "wong"},
+            balance: 50
+        },
+        {
+            name: {firstName: "bob", lastName: "yang"},
+            balance: 20
+        }
+    ])
+    
+    对银行账户文档进行重新投影
+        db.accounts.aggregate({
+            $project: {
+                _id: 0,
+                balance: 1,
+                clientName: "$name.firstName"
+            }
+        })
+    
+    返回数据
+    
+        { "balance" : 50, "clientName" : "alice" }
+        { "balance" : 20, "clientName" : "bob" }
+        
+    如果对于一个没有字段会出现什么情况
+        db.accounts.aggregate({
+            $project: {
+                _id: 0,
+                balance: 1,
+                nameArray: ["$name.firstName", "$name.middleName", "$name.lastName"]
+            }
+        })
+
+    返回数据,发现没有字段直接返回null
+        { "balance" : 50, "nameArray" : [ "alice", null, "wong" ] }
+        { "balance" : 20, "nameArray" : [ "bob", null, "yang" ] }
+
+    $project 是一个非常常用的聚合阶段
+    可以用来灵活的控制输出文档的格式
+    也可以用来剔除不相关的字段,以优化聚合管道操作的性能
+
+$match - 对输入文档进行筛选
+
+    $match中使用的文档筛选语法,和读取文档时的筛选语法相同
+    
+    对银行文档进行筛选
+        db.accounts.aggregate({
+            $match: {
+                "name.firstName": "alice"
+            }
+        })
+        
+    返回数据
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50 }
+
+    更加复杂筛选
+        db.accounts.aggregate({
+            $match: {
+                $or:[
+                    {balance: {$gt: 40, $lt: 80}},
+                    {"name.lastName": "yang"}
+                ]
+            }
+        })
+    
+    返回数据
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50 }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20 }
+
+    将筛选和投影阶段结合在一起
+        db.accounts.aggregate([{
+            $match: {
+                $or:[
+                    {balance: {$gt: 40, $lt: 80}},
+                    {"name.lastName": "yang"}
+                ]
+            }
+        },{
+            $project: {
+            _id: 0
+            }
+        }])
+        
+    返回数据
+        { "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50 }
+        { "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20 }
+        
+    $match也是一个很常用的聚合阶段
+    应该尽量在聚合管道的开始阶段应用$match
+    应该可以减少后续阶段中需要处理的文档数量,优化聚合操作的性能
+
+$limit - 筛选管道内前N篇文档
+    
+    筛选出第一篇银行账户文档
+        db.accounts.aggregate([
+            {$limit: 1}
+        ])
+     
+    返回第一篇文档
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50 }
+
+$skip - 跳过管道内前N篇文档
+
+    跳过第一篇银行账户文档
+        db.accounts.aggregate([
+            {$skip: 1}
+        ])
+    
+    返回第二篇文档开始的所有文档
+    
+
+$unwind - 展开输入文档中的数组字段
+
+    向现有的银行账户文档中加入数组字段
+        db.accounts.update(
+            {"name.firstName": "alice"},
+            {$set: {currency: ["CNY", "USD"]}}
+        )
+        
+        db.accounts.update(
+            {"name.firstName": "bob"},
+            {$set: {currency: "GBP"}}
+        )
+     
+    数组展开
+        db.accounts.aggregate([
+            {$unwind: {
+                path: "$currency"
+            }}
+        ])
+        
+    返回
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "CNY" }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "USD" }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP" }
+
+    数组展开数组是添加原数组元素的位置
+        db.accounts.aggregate([
+            {$unwind: {
+                path: "$currency",
+                includeArrayIndex: "ccyIndex"
+            }}
+        ])
+    
+    返回
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "CNY", "ccyIndex" : NumberLong(0) }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "USD", "ccyIndex" : NumberLong(1) }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP", "ccyIndex" : null }
+
+    在添加几个文档
+        db.accounts.insertMany([
+            {
+                name: {firstName: "charlie", lastName: "gordon"},
+                balance: 100
+            },
+            {
+                name: {firstName: "david", lastName: "wu"},
+                balance: 20,
+                currency: []
+            },
+            {
+                name: {firstName: "eddie", lastName: "kim"},
+                balance: 20,
+                currency: null
+            }
+        ]) 
+    
+    数组展开后
+        db.accounts.aggregate([
+            {$unwind: {
+                path: "$currency"
+            }}
+        ])
+    
+    返回数据,还是3篇文档,$unwind会自动过滤掉null,空值,没有字段的
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "CNY", "ccyIndex" : NumberLong(0) }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "USD", "ccyIndex" : NumberLong(1) }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP", "ccyIndex" : null }
+
+    展开数据是保留数组或不存在的数组的文档
+        db.accounts.aggregate([
+            {$sort: {
+                path: "$currency",
+                preseveNullAndEmptyArrays: true
+            }}
+        ])
+
+    
+$sort - 对输入文档进行排序
+
+    对银行账户文档进行排序
+
+        db.accounts.aggregate([
+            {$unwind: {
+                balance: 1,
+                "name.lastName": -1
+            }}
+        ])
+        
+        返回数据,余额从小到大排序,如果余额相等姓名从大到小排序
+        
+$lookup - 对输入文档进行查询操作
+    
+使用单一字段值进行查询
+
+语法:
+
+    $lookup:{
+        from: <collection to join>,
+        localField: <field from the input docments>,
+        foreignField; <field from the document of the "from" collection>,
+        as: <output array field>
+    }
+    
+    from同一数据库中的另一个查询集合
+    localField管道文档中用来进行查询字段
+    foreignField查询集合中的查询字段
+    as写入管道文档中的查询结果数组字段
+    
+    增加一个集合用来存储外汇数据
+    
+        db.forex.insertMany(
+          [
+            {
+                ccy: "USD",
+                rate: 6.91,
+                date: new Date("2018-12-21")
+            },
+            {
+                ccy: "GBP",
+                rate: 8.72,
+                date: new Date("2018-10-21")
+            },
+            {
+                ccy: "CNY",
+                rate: 1.0,
+                date: new Date("2018-12-21")
+            }
+          ]
+        )
+    
+    将查询到的外汇汇率写入银行账户文档
+    
+        db.accounts.aggregate([
+            {
+                $lookup: {
+                    from: "forex",
+                    localField: "currency",
+                    foreignField: "ccy",
+                    as: "forexData"
+                }
+            }
+        ])
+        
+    返回数据,如果匹配值加入文档,不匹配为空
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : [ "CNY", "USD" ], "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP", "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38fa"), "ccy" : "GBP", "rate" : 8.72, "date" : ISODate("2018-10-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f6"), "name" : { "firstName" : "charlie", "lastName" : "gordon" }, "balance" : 100, "forexData" : [ ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f7"), "name" : { "firstName" : "david", "lastName" : "wu" }, "balance" : 20, "currency" : [ ], "forexData" : [ ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f8"), "name" : { "firstName" : "eddie", "lastName" : "kim" }, "balance" : 20, "currency" : null, "forexData" : [ ] }
+
+    如果localField是一个数组字段
+    
+        db.accounts.aggregate([
+            {
+                $unwind: {
+                    path: "$currency",
+                }
+            },
+            {
+                $lookup: {
+                    from: "forex",
+                    localField: "currency",
+                    foreignField: "ccy",
+                    as: "forexData"
+                }
+            }
+        ])
+     
+    返回数据,只有3篇文档,原因是$unwind字段展开后会过滤空值字段,在操作$lookup
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "CNY", "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : "USD", "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP", "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38fa"), "ccy" : "GBP", "rate" : 8.72, "date" : ISODate("2018-10-21T00:00:00Z") } ] }
+    
+使用复杂条件进行查询
+
+    $lookup:{
+        from: <collection to join>,
+        let: {<var_1>: <expression>, ..., <var_n>: <expression>},
+        pipeline: [<pipeline to execute onthe collection to join>],
+        as: <output array field>
+    }
+    
+    pipeline 对查询集合中的文档使用聚合阶段进行处理
+    let 对查询集合中的文档使用聚合阶段进行处理时,如果需要仓库管道文档中的字段,则必须使用let参数对字段进行声明
+
+$group - 堆输入文档进行分组
+$out - 将管道中中文档输出
 
 # 第5章 论MongoDB中索引的重要性
 
