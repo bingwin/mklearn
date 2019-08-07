@@ -1352,8 +1352,7 @@ $max 比较增大字段值
  
 ## 最常用的聚合管道
 
-语法: db.<collection>.aggregate(<pipleline>, <options>)
-
+    语法: db.<collection>.aggregate(<pipleline>, <options>)
     <pipleline>文档定义了操作中使用的聚合管道阶段和聚合操作符
     <options>文档声明了一些聚合操作的参数
     
@@ -1583,7 +1582,9 @@ $sort - 对输入文档进行排序
         ])
         
         返回数据,余额从小到大排序,如果余额相等姓名从大到小排序
-        
+
+## Lookup阶段     
+
 $lookup - 对输入文档进行查询操作
     
 使用单一字段值进行查询
@@ -1678,11 +1679,545 @@ $lookup - 对输入文档进行查询操作
     
     pipeline 对查询集合中的文档使用聚合阶段进行处理
     let 对查询集合中的文档使用聚合阶段进行处理时,如果需要仓库管道文档中的字段,则必须使用let参数对字段进行声明
+    
+    将特定日期外汇汇率写入银行账户文档
+        db.accounts.aggregate([
+            {
+                $lookup: {
+                    from: "forex",
+                    pipeline: [
+                        {$match: {
+                            date: new Date("2018-12-21")
+                        }}
+                    ],
+                    as: "forexData"
+                }
+            }
+        ])
+        
+    返回数据
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : [ "CNY", "USD" ], "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP", "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f6"), "name" : { "firstName" : "charlie", "lastName" : "gordon" }, "balance" : 100, "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f7"), "name" : { "firstName" : "david", "lastName" : "wu" }, "balance" : 20, "currency" : [ ], "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f8"), "name" : { "firstName" : "eddie", "lastName" : "kim" }, "balance" : 20, "currency" : null, "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+    
+    注意,在这个例子中,查询条件和管道文档之间,其实并没有直接的联系,这种查询被称作不相关查询,$lookup从3.6版本开始支持不相关查询
+    
+    将特定日期外汇汇率写入余额大于100的银行账户文档
+        db.accounts.aggregate([
+            {
+                $lookup: {
+                    from: "forex",
+                    let: {bal: "$balance"},
+                    pipeline: [
+                        {$match: {
+                            $expr:{
+                                $and: [
+                                    {$eq: ["$date", new Date("2018-12-21")]},
+                                    {$gt: ["$$bal", 99]},
+                                ]
+                            }
+                        }}
+                    ],
+                    as: "forexData"
+                }
+            }
+        ])
+        
+    $date指定的是查询集合forex的date子弹,accounts是管道集合,
+    $$bal使用$$来指示系统变量let: {bal: "$balance"}管道集合,
+    $expr可以使用let变量比较字段
+        
+    返回数据,余额大于99通过管道插入数据中
+        { "_id" : ObjectId("5d499767e5333f1dd6de923e"), "name" : { "firstName" : "alice", "lastName" : "wong" }, "balance" : 50, "currency" : [ "CNY", "USD" ], "forexData" : [ ] }
+        { "_id" : ObjectId("5d499767e5333f1dd6de923f"), "name" : { "firstName" : "bob", "lastName" : "yang" }, "balance" : 20, "currency" : "GBP", "forexData" : [ ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f6"), "name" : { "firstName" : "charlie", "lastName" : "gordon" }, "balance" : 100, "forexData" : [ { "_id" : ObjectId("5d49bd1353318605b8ea38f9"), "ccy" : "USD", "rate" : 6.91, "date" : ISODate("2018-12-21T00:00:00Z") }, { "_id" : ObjectId("5d49bd1353318605b8ea38fb"), "ccy" : "CNY", "rate" : 1, "date" : ISODate("2018-12-21T00:00:00Z") } ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f7"), "name" : { "firstName" : "david", "lastName" : "wu" }, "balance" : 20, "currency" : [ ], "forexData" : [ ] }
+        { "_id" : ObjectId("5d49b83353318605b8ea38f8"), "name" : { "firstName" : "eddie", "lastName" : "kim" }, "balance" : 20, "currency" : null, "forexData" : [ ] }
+    
+## 会分类的聚合操作-Group阶段
 
-$group - 堆输入文档进行分组
-$out - 将管道中中文档输出
+$group - 对输入文档进行分组
+
+    $group: {
+        _id: <expression>,
+        <field1>: {<accumulator1>: <expression1>},
+        ....
+    }
+    
+    _id定义分组规则
+    field1可以使用聚合操作符来定义新字段
+
+增加一个集合用来存储股票交易记录
+    
+    db.transactions.insertMany(
+        [
+            {
+                symbol: "600519",
+                qty: 100,
+                price: 567.4,
+                currency: "CNY"
+             },
+            {
+                symbol: "AMZN",
+                qty: 1,
+                price: 1377.5,
+                currency: "USD"
+             },
+            {
+                symbol: "AAPL",
+                qty: 2,
+                price: 150.7,
+                currency: "USD"
+             },
+        ]
+    )
+    
+按照交易货币来分组交易记录
+
+    db.transactions.aggregate({
+        $group:{
+            _id: "$currency"
+        }
+    })
+    
+    返回数据
+    
+        { "_id" : "USD" }
+        { "_id" : "CNY" }
+        
+    不使用聚合操作符的情况下,$group可以返回管道文档中某一字段的所有(不重复的)值
+
+使用聚合操作符计算分组聚合值
+
+    db.transactions.aggregate({
+        $group:{
+            _id: "$currency",
+            totalQty: {$sum: "$qty"},
+            totalNotional: {$sum: {$multiply: ["$price", "$qty"]}},
+            avgPrice: {$avg: "$price"},
+            count: {$sum: 1},
+            maxNotional: {$max: {$multiply: ["$price", "$qty"]}},
+            maxNotional: {$min: {$multiply: ["$price", "$qty"]}},
+        }
+    })
+    
+    totalQty:交易总数量
+    totalNotional:交易总价格
+    avgPrice:交易平均价格
+    count:交易笔数
+    maxNotional:最大交易金额
+    maxNotional:最小交易金额
+    
+    返回
+    
+        { "_id" : "USD", "totalQty" : 3, "totalNotional" : 1678.9, "avgPrice" : 764.1, "count" : 2, "maxNotional" : 301.4 }
+        { "_id" : "CNY", "totalQty" : 100, "totalNotional" : 56740, "avgPrice" : 567.4, "count" : 1, "maxNotional" : 56740 }
+
+使用聚合操作符计算所有的文档聚合值
+
+    db.transactions.aggregate({
+        $group:{
+            _id: null,
+            totalQty: {$sum: "$qty"},
+            totalNotional: {$sum: {$multiply: ["$price", "$qty"]}},
+            avgPrice: {$avg: "$price"},
+            count: {$sum: 1},
+            maxNotional: {$max: {$multiply: ["$price", "$qty"]}},
+            maxNotional: {$min: {$multiply: ["$price", "$qty"]}},
+        }
+    })
+    
+    返回
+        { "_id" : null, "totalQty" : 103, "totalNotional" : 58418.9, "avgPrice" : 698.5333333333333, "count" : 3, "maxNotional" : 301.4 }
+
+使用聚合操作符创建数组字段
+
+    db.transactions.aggregate({
+        $group:{
+            _id: "$currency",
+            symbols: {$push: "$symbol"}
+        }
+    })
+    
+    $push将$symbol写入symbols字段
+    
+    返回
+    
+        { "_id" : "USD", "symbols" : [ "AMZN", "AAPL" ] }
+        { "_id" : "CNY", "symbols" : [ "600519" ] }
+
+## out阶段
+
+$out - 将管道中文档输出
+
+将聚合管道中的文档写入一个新的集合
+
+    db.transactions.aggregate([
+        {
+            $group:{
+                _id: "$currency",
+                symbols: {$push: "$symbol"}
+            }
+        },
+        {
+            $out: "output"
+        }
+    ])
+    
+    查询
+        db.output.find()
+        
+        { "_id" : "USD", "symbols" : [ "AMZN", "AAPL" ] }
+        { "_id" : "CNY", "symbols" : [ "600519" ] }
+        
+将聚合管道中的文档吸入一个已存在的集合
+
+    db.transactions.aggregate([
+        {
+            $group:{
+                _id: "$symbol",
+                totalNotional: {$sum: {$multiply: ["$price", "$qty"]}},
+            }
+        },
+        {
+            $out: "output"
+        }
+    ])
+    
+    返回数据
+        
+        { "_id" : "AAPL", "totalNotional" : 301.4 }
+        { "_id" : "AMZN", "totalNotional" : 1377.5 }
+        { "_id" : "600519", "totalNotional" : 56740 }
+
+如果聚合管道操作遇到错误,管道阶段不会创建新的集合或是覆盖已存在的集合内容
+
+## 聚合管道的优化与局限
+
+    语法: db.<collection>.aggregate(<pipleline>, <options>)
+    <pipleline>文档定义了操作中使用的聚合管道阶段和聚合操作符
+    <options>文档声明了一些聚合操作的参数
+
+options作用
+    
+    allowDiskUse: boolean
+    每个聚合管道阶段使用的内存不能超过100MB
+    如果数据量较大,为了防止聚合管道阶段超出内存上限并且抛出错误,可以启用allowDiskUse选项
+    allowDiskUse启用之后,聚合阶段可以在内存容量不足时,将操作数据写入临时文件中
+    临时文件会被写入dbpath下的_tmp文件夹,dbpath的默认值为/data/db
+    
+    db.transactions.aggregate([{
+        $group:{
+            _id: "$currency",
+            symbols: {$push: "$symbol"}
+        }
+    }],
+    {allowDiskUse: true}
+    )
+    
+## 聚合操作的优化
+
+### 聚合阶段顺序优化
+    
+$project + $match
+
+    $match阶段会在$project阶段之前运行
+    
+        db.transactions.aggregate([
+            {
+                $project:{
+                    _id: 0, symbol: 1, currency: 1,
+                    notional: {$multiply: ["$price", "$qty"]}
+                }
+            },
+            {
+                $match: {
+                    currency: "USD",
+                    notional:{$gt: 100}
+                }
+            }
+        ])
+        
+    我们定义了2个管道筛选条件,currency: "USD",和notional:{$gt: 100},但是mongo会优化成下面执行语句
+    
+        db.transactions.aggregate([
+            {
+                $match: {
+                    currency: "USD"
+                }
+            },
+            {
+                $project:{
+                    _id: 0, symbol: 1, currency: 1,
+                    notional: {$multiply: ["$price", "$qty"]}
+                }
+            },
+            {
+                $match: {
+                    notional:{$gt: 100}
+                }
+            }
+        ])
+        
+    因为currency: "USD"筛选条件是原数据已经存在的先处理
+    
+$sort + $match
+    
+    $match阶段会在$sort阶段之前运行
+        db.transactions.aggregate([
+            {
+                $match:{
+                    currency: "USD"
+                }
+            },
+            {
+                $sort: {
+                    price: 1
+                }
+            }
+        ])
+    
+    mongo会优化成先执行$match,在执行$sort
+    
+$project + $skip
+    
+    $skip阶段会在$project阶段之前运行
+    
+        db.transactions.aggregate([
+            {
+                $project:{
+                    _id: 0, symbol: 1, currency: 1,
+                    notional: {$multiply: ["$price", "$qty"]}
+                }
+            },
+            {
+                $skip: 2
+            }
+        ])
+        
+    会执行成
+    
+        db.transactions.aggregate([
+            {
+                $skip: 2
+            },
+            {
+                $project:{
+                    _id: 0, symbol: 1, currency: 1,
+                    notional: {$multiply: ["$price", "$qty"]}
+                }
+            }
+        ])
+        
+### 聚合阶段合并优化
+    
+$sort + $limit
+
+    如果两者之间没有夹杂着会改变文档数量的聚合阶段,$sort + $limit阶段可以合并
+    
+        db.transactions.aggregate([
+            {
+                $sort: {price: 1}
+            },
+            {
+                $project:{
+                    _id: 0, symbol: 1, currency: 1,
+                    notional: {$multiply: ["$price", "$qty"]}
+                }
+            },
+            {
+                $limit: 2
+            }
+        ])
+        
+    mongo会执行成, $sort: {price: 1} + $limit: 2 这里是伪代码
+    
+        db.transactions.aggregate([
+            {
+                $sort: {price: 1} + $limit: 2 这里是伪代码
+            },
+            {
+                $project:{
+                    _id: 0, symbol: 1, currency: 1,
+                    notional: {$multiply: ["$price", "$qty"]}
+                }
+            }
+        ])
+        
+    $limit + $limit
+    $skip + $skip
+    $match + $match
+    
+连续的$limit,$skip,$match阶段排列在一起是,可以合并为一个阶段
+    
+    {$limit: 10}, ---> {$limit: 5}
+    {$limit: 5}
+    
+    {$skip: 10}, ---> {$skip: 15}
+    {$skip: 5}
+    
+    {$match: {currency: "USD"}} --->
+    {$match: {qty: 1}}
+    
+    --> {$match: {
+            $and: [
+                {"currency": "USD"},
+                {"qty": 1}
+            ]
+        }}
+    
+$lookup + $unwind
+
+    连续排序在一起的$lookup和$unwind阶段,如果$unwind应用在$lookup阶段创建的as字段上,则两者可以合并
+
+        db.accounts.aggregate([
+            {
+                $lookup: {
+                    from: "forex",
+                    localField: "currency",
+                    foreignField: "ccy",
+                    as: "forexData"
+                }
+            },
+            {
+                $unwind: "$forexData"
+            }
+        ])
+        
+    mongo会执行成,直接内部执行$unwind
+    
+        db.accounts.aggregate([
+            {
+                $lookup: {
+                    from: "forex",
+                    localField: "currency",
+                    foreignField: "ccy",
+                    as: "forexData"
+                }
+            } + {$unwind: "$forexData"} 伪代码
+        ])
 
 # 第5章 论MongoDB中索引的重要性
+
+## 什么是索引
+
+    index
+    合适的索引可以大大提升数据库搜索性能
+    集合层面的索引
+
+单键索引
+
+![img]( ./img/5.png "确定开发技术栈")
+
+复合键索引
+
+![img]( ./img/6.png "确定开发技术栈")
+
+复合键索引注意点,发现只有a字段是排序好的,其他字段单独搜索时索引是不起效果的
+
+![img]( ./img/7.png "确定开发技术栈")
+
+对文档部分内容进行排序的数据结构
+
+加快文档查询和文档排序的速度
+
+复合键索引只能支持前缀子查询
+
+索引的操作
+
+    db.collection.getIndexes()
+    
+    db.collection.createIndex()
+    
+    db.collection.dropIndex()
+
+索引的类型
+
+    单键索引
+    
+    复合键索引
+    
+    多键索引
+    
+索引的特效
+    
+    唯一性
+    稀疏性
+    生存时间
+    
+查询分析
+
+    检视索引的效果
+    explain()
+    
+索引的选择
+    
+    如何创建一个合适索引
+    索引对数据库操作的影响
+    
+## 索引的操作,效果和特性
+
+db.collection.createIndex(keys, options)
+
+    keys 文档指定了创建索引的字段
+    
+创建一个新的集合
+
+    db.accountsWithIndex.insertMany([
+        {name: "alice", balance: 50, currency: ["GBP", "USD"]},
+        {name: "bob", balance: 20, currency: ["AUD", "USD"]},
+        {name: "bob", balance: 300, currency: ["CNY", "USD"]},
+    ])
+    
+### 创建一个单键索引
+
+    db.accountsWithIndex.createIndex({name: 1})
+    
+返回数据
+
+    {
+        "createdCollectionAutomatically" : false,
+        "numIndexesBefore" : 1,
+        "numIndexesAfter" : 2,
+        "ok" : 1
+    }
+
+列出集合中已存在的索引
+
+    db.accountsWithIndex.getIndexes()
+    
+返回数据
+
+    [
+        {
+            "v" : 2,
+            "key" : {
+                "_id" : 1
+            },
+            "name" : "_id_",
+            "ns" : "test.accountsWithIndex"
+        },
+        {
+            "v" : 2,
+            "key" : {
+                "name" : 1
+            },
+            "name" : "name_1",
+            "ns" : "test.accountsWithIndex"
+        }
+    ]
+
+### 创建一个复合键索引
+
+    db.accountsWithIndex.createIndex({name: 1, balance: -1})
+    
+### 创建一个多键索引
+
+用来创建在数组字段上
+
+    db.accountsWithIndex.createIndex({currency: 1})
 
 # 第10章 MongoDB之数据安全
 
