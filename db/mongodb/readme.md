@@ -2568,9 +2568,437 @@ db.collection.createIndex(keys, options)
 数据库使用一个后台线程来监测和删除过期的文档,删除操作可能有一定的延迟
     
 # 第6章 MongoDB实战之仓位管理服务
+
+## 搭建仓位记录控制服务
+
+在这次演示中，我们来搭建一个支持MongoDB数据库CRUD操作的web服务，用来进行交易仓位的管理。
+
+### 每一条仓位记录包含了以下信息：
+
+    交易账号
+    股票代码
+    交易数量
+    交易价格
+
+### 准备工作
+
+    下载安装node.js: https://nodejs.org/en/download/
+    下载安装Postman: https://www.getpostman.com/
+    在docker容器上运行mongod(并绑定端口到本地):
+    docker run --name mymongo -v /path/to/data:/data/db -p 27017:27017 -d mongo:4
+
+### 基本架构
+
+![img]( ./img/8.png "确定开发技术栈")
+
+## 初始化实战项目
+    
+    npm init 
+    npm install --save express body-parser mongoose
+    
+    express nodejs框架
+    body-parser 是express结合使用的中间件,解析客户端请求
+    mongoose 类似orm对象关系模型
+    
+    在package.json能查看数据
+    
+## 先理解项目架构
+
+    1.model模型层
+    2.controller定义crud操作
+    3.router路由层
+    
+## 首先需要一个仓位数据模型
+
+model-->position.js
+
+    var mongoose = require('mongoose');
+    var Schema = mongoose.Schema;
+
+    var PositionSchema = new Schema({
+        account: {type: String, required: true},
+        stock: {type: String, required: true},
+        quantity: {type: Number, required: true},
+        price: {type: Number, required: true}
+    });
+
+    module.exports = mongoose.model('Position', PositionSchema);
+    
+## 控制器
+
+controllers-->position.js
+
+    var Position = require('../models/position');
+
+    // Create
+    exports.createPosition = function(req, res) {
+        var position = new Position(
+            {
+                account: req.body.account,
+                stock: req.body.stock,
+                quantity: req.body.quantity,
+                price: req.body.price
+            }
+        );
+
+        position.save(function (err) {
+            if (err) {
+                return next(err)
+            }
+            res.send('仓位记录添加成功')
+        })
+    };
+
+    // Read
+    exports.queryPosition = function(req, res) {
+        Position.find({account: req.params.account}, function(err, position) {
+            if (err) return next(err);
+            res.send(position);
+        })
+    };
+
+    // Update
+    exports.updatePosition = function(req, res) {
+        Position.findByIdAndUpdate(req.params.id, {$set: req.body}, function(err, position) {
+            if (err) next(err);
+            res.send('仓位记录更新成功');
+        })
+    };
+
+    // Delete
+    exports.deletePosition = function(req, res) {
+        Position.findByIdAndRemove(req.params.id, function(err) {
+            if (err) return next(err);
+            res.send('仓位记录删除成功');
+        })
+    };
+    
+## 路由
+
+将请求分配给控制器 routes --> position.js
+
+    var express = require('express');
+    var router = express.Router();
+
+    var positionController = require('../controllers/position');
+
+    router.post('/create', positionController.createPosition);
+
+    router.get('/:account', positionController.queryPosition);
+
+    router.put('/:id/update', positionController.updatePosition);
+
+    router.delete('/:id/delete', positionController.deletePosition);
+
+    module.exports = router;
+    
+## 将所有组件串联起来 app.js
+
+    var express = require('express');
+    var app = express();
+
+    // Set up mongoose connection
+    var mongoose = require('mongoose');
+    // mongodb://<user>:<pwd>@<host>:<port>/<database>
+    var mongoDB = 'mongodb://localhost:27017/demo';
+    mongoose.connect(mongoDB, {useNewUrlParser: true});
+    var db = mongoose.connection;
+    db.on('error', console.error.bind(console, 'MongoDB连接异常:'));
+
+    var bodyParser = require('body-parser');
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({extended: false}));
+
+    var position = require('./routes/position');
+    app.use('/position', position);
+
+    var port = 8888;
+    app.listen(port, () => {
+        console.log('仓位记录管理服务运行中...')
+    });
+    
+## 运行成功
+    
+    node app.js
+    
+    postman测试插入数据
+    
+![img]( ./img/9.png "确定开发技术栈")
+
+查询数据是否插入
+    
+    show dbs
+    use demo
+    db.positions.find()
+    
+接口
+    
+    http://localhost:8888/position/001 查询数据
+    http://localhost:8888/position/5d4be980e0e4f8308c17db1d/update 更新文档
+    http://localhost:8888/position/5d4be980e0e4f8308c17db1d/delete 删除文档
+    
+# 第7章 MongoDB之数据模型
+
+## 文档结构与简单的文档关系
+
+没有固定的数据格式不等于无需设计数据模型
+
+文档结构-->数据之间的关系
+
+内嵌式结构vs规范式结构
+
+### 内嵌式结构
+
+![img]( ./img/10.png "确定开发技术栈")
+
+### 规范式文档
+
+![img]( ./img/11.png "确定开发技术栈")
         
+### 文档关系一对一
+
+![img]( ./img/12.png "确定开发技术栈")
+
+一次查询就可以返回所有数据
+
+更具有独立性的数据应作为顶层文档
+
+补充性数据应作为内嵌文档
+
+### 文档关系一对多
+
+内嵌方式
+
+![img]( ./img/13.png "确定开发技术栈")
+
+    一次查询就可以返回所有数据
+    
+    更新内嵌文档复杂度增高
+    
+    适合读取频率远高于更新频率的数据
+
+规范方式
+
+![img]( ./img/14.png "确定开发技术栈")
+
+    减少了重复数据
+    降低文档更新的复杂度
+    需要多次读取操作才能得到完整的数据
+    
+更多文档结构方式
+
+![img]( ./img/15.png "确定开发技术栈")
+
+    适合常常需要返回全部相关文档查询
+    数组元素较多时,避免使用内嵌文档
+    数组元素极多时,重新设计文档结构
+    
+## 树形文档关系
+
+![img]( ./img/16.png "确定开发技术栈")
+
+mongo怎么表达这样数据结构?
+
+通过建立一个指向父节点字段
+
+![img]( ./img/17.png "确定开发技术栈")
+
+通过建立一个指向子节点字段
+
+![img]( ./img/18.png "确定开发技术栈")
+
+如果常常需要提取子级树,适合这种方式
+![img]( ./img/19.png "确定开发技术栈")
+
+### 深度遍历
+
+![img]( ./img/20.png "确定开发技术栈")
+
+    左边编号永远大于根节点左边
+    右边编号永远小于根节点右边
+    
+用mongo表示
+![img]( ./img/21.png "确定开发技术栈")
+
+    这样发现,我们要找到Non-relational下的所有子节点,只需要查找所有大于left和小于right的文档
+    这个的结构一般用于参考数据,而不常常的更新他
+        
+# 第8章 MongoDB之复制集
+## 复制集基本概念
+![img]( ./img/22.png "确定开发技术栈")
+
+    高可用性
+    数据安全
+    分流/分工
+
+复制集
+
+![img]( ./img/23.png "确定开发技术栈")
+
+    主节点负责处理所有的写入请求
+    主节点默认和副节点都可用处理读取请求
+    副节点从主节点(或者符合条件副节点)复制数据
+    
+复制集节点的心跳请求
+
+![img]( ./img/24.png "确定开发技术栈")
+
+    每个节点都会向其他节点发送心跳请求
+    每隔2秒发送一次,超过10秒则请求超时(默认)
+    复制集中最多可以有50个节点
+    
+## 复制集选举
+
+![img]( ./img/25.png "确定开发技术栈")
+
+    候选节点发起选举,每个节点投票给比自己更同步的节点,发起投票的节点会投票自己
+    得到超过半数选票的候选节点会当选为主节点
+    复制集中最多可以有7个投票节点
+    
+触发选举的事件
+
+    主节点与副节点之间的心跳请求超时
+    复制集初始化
+    新节点加入复制集
+    
+投票机,实际上是特殊的主节点
+
+![img]( ./img/26.png "确定开发技术栈")
+
+    没有数据
+    可以投票
+    不能成为主节点
+
+## 写库记录
+
+这里先了解初始同步
+
+![img]( ./img/27.png "确定开发技术栈")
+
+    先后会清空需要同步数据库,在进行初始化
+    
+写库记录同步
+
+![img]( ./img/28.png "确定开发技术栈")
+
+    写库日志中的记录可以被重复使用
+    多个线程分批次使用日志记录
+    写库日志的大小和文档大小不一定成正比
+    
+## 搭建MongoDB复制集之启动节点
+
+为了创建复制集用到docker,在现实环境不是一个非常好的docker模式
+
+    创建docker network
+    docker network create mynetwork
+    docker network ls
+    
+    运行3个mongod节点
+    docker run --net mynetwork --name mongo1 -v /mymongo/data1:/data/db/ -p 27017:27017 -d mongo:4 --replSet myset --port 27017
+    docker run --net mynetwork --name mongo2 -v /mymongo/data2:/data/db/ -p 27018:27018 -d mongo:4 --replSet myset --port 27018
+    docker run --net mynetwork --name mongo3 -v /mymongo/data3:/data/db/ -p 27019:27019 -d mongo:4 --replSet myset --port 27019
+
+## 搭建MongoDB复制集之创建复制集
+
+    docker exec -it mongo1 mongo
+    
+    进入mongo shell
+        
+        rs.initiate(
+            {
+                _id: "myset",
+                members: [
+                    {_id: 0, host: "mongo1:27017"},
+                    {_id: 1, host: "mongo2:27018"},
+                    {_id: 2, host: "mongo3:27019"},
+                ]
+            }
+        )
+        
+    查询复制集的状态
+        rs.status()
+        
+    返回数据中
+        members字段name是mongo1:27017,stateStr是PRIMARY主节点
+        字段name是mongo2:27018,stateStr是SECONDARY二级节点
+        
+    并且mongo shell提示符变成了
+        myset:PRIMARY
+        
+# 第9章 MongoDB之数据分片
+   
 # 第10章 MongoDB之数据安全
 
 # 第11章 MongoDB之管理工具
 
 # 第12章 MongoDB之故障诊断
+
+## 故障诊断之响应时间长问题解决方案
+
+    对于一般的web服务来说,响应时间应该在200ms以内
+    对于一般的mongoDB请求来说,响应时间应该在100ms以内
+    
+    合适的索引
+    使用explain()查看索引的有效性
+    工作集超出RAM大小
+    使用mongostart查看服务器状态
+
+## 故障诊断之内存不足问题模拟
+    
+    在生产环境中,先模式一下问题,在docker启动mongod是我们可以传入一个配置文件,配置文件中缓存最大的大小
+    docker run --name mymongo -v /Users/apple/Documents/workspace/imooc/mongodb/demo/data:/data/db -d mongo:4 mongod -f /data/db/mongo.conf
+    
+可以修改一下配置文件,给一个缓存大小0.25
+
+![img]( ./img/29.png "确定开发技术栈")
+
+启动docker,传入mongod中 -f
+
+    docker run --name mymongo -v /Users/apple/Documents/workspace/imooc/mongodb/demo/data:/data/db -d mongo:4 mongod -f /data/db/mongo.conf
+
+导入海量数据
+    
+    docker exec -it mymongo bash 进入mongod
+    /data/db/scripts/load-large-dataset.sh 运行导入数据
+    
+使用mongostat监控服务器进程状态
+
+    mongostat --host localhost --port 27017 -o "command,dirty,used,vsed,res,conn,time"
+    
+![img]( ./img/30.png "确定开发技术栈")
+
+    used百分比远远高于dirty百分比,说明工作集的大小超过了缓存的大小
+    
+## 故障诊断之连接失败问题
+
+默认情况下,mongod进程可以支持多达65536个连接
+
+不恰当的配置可能限制连接数
+
+查看支持的连接数
+
+    db.serverStatus().connections
+    
+    返回
+        { "current" : 1, "available" : 838859, "totalCreated" : 2, "active" : 1 }
+        
+        current服务器有1个连接
+        available还可以创建多少连接
+        totalCreated总共创建过多少个连接
+        active正在活跃的连接
+        
+    mongo.conf文件
+        
+        maxIncomingConnections: 200
+        
+## 故障诊断之最大连接数问题
+
+    我在配置文件mongo.conf最大连接数是2000
+    
+    但是db.serverStatus().connections返回只有1600
+    
+查看 ulimit -a会看到open files是2000,也就是说docker容器最大文件描述器数量是2000,
+
+![img]( ./img/31.png "确定开发技术栈")
+
+我们知道mongodb每一个连接,每一个集合,都需要文件描述器,如果文件描述器总量是2000个话,所以留个连接数就少了
