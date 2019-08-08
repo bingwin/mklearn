@@ -2175,6 +2175,8 @@ db.collection.createIndex(keys, options)
 
     db.accountsWithIndex.createIndex({name: 1})
     
+    1代表正向排序
+    
 返回数据
 
     {
@@ -2218,7 +2220,355 @@ db.collection.createIndex(keys, options)
 用来创建在数组字段上
 
     db.accountsWithIndex.createIndex({currency: 1})
+    
+    多键索引,数组字段中的每一个元素,都会在多键索引中创建一个键
+    
+        "AUD" --> {"bob"}
+        "CNY" --> {"bob"}
+        "GBP" --> {"alice"}
+        "USD" --> {"alice"}
+        "USD" --> {"bob"}
+        
+### 索引的效果
 
+    语法: db.collection.explain().<method(...)>
+    
+    可以使用explain()进行分析的命令包括aggregate(), count(), distinct(), find(), group(), remove(), update()
+    
+使用没有创建索引的字段进行搜索
+
+    db.accountsWithIndex.explain().find({ balance: 100})
+    
+    返回数据
+    
+        {
+            "queryPlanner" : {
+                "plannerVersion" : 1,
+                "namespace" : "test.accountsWithIndex",
+                "indexFilterSet" : false,
+                "parsedQuery" : {
+                    "balance" : {
+                        "$eq" : 100
+                    }
+                },
+                "winningPlan" : {
+                    "stage" : "COLLSCAN",
+                    "filter" : {
+                        "balance" : {
+                            "$eq" : 100
+                        }
+                    },
+                    "direction" : "forward"
+                },
+                "rejectedPlans" : [ ]
+            },
+            "serverInfo" : {
+                "host" : "7d4b54dab2c2",
+                "port" : 27017,
+                "version" : "4.0.11",
+                "gitVersion" : "417d1a712e9f040d54beca8e4943edce218e9a8c"
+            },
+            "ok" : 1
+        }
+        
+    我们要关注的是winningPlan字段inputStage中,返回的是COLLSCAN全表扫描,不是非常好的方法.看到这个时候要警示!
+    
+使用已经创建索引的字段进行搜索
+
+    db.accountsWithIndex.explain().find({ name: "alice"})
+
+    返回数据
+		"winningPlan" : {
+			"stage" : "FETCH",
+			"inputStage" : {
+				"stage" : "IXSCAN",
+				"keyPattern" : {
+					"name" : 1,
+					"balance" : -1
+				},
+				"indexName" : "name_1_balance_-1",
+				"isMultiKey" : false,
+				"multiKeyPaths" : {
+					"name" : [ ],
+					"balance" : [ ]
+				},
+				"isUnique" : false,
+				"isSparse" : false,
+				"isPartial" : false,
+				"indexVersion" : 2,
+				"direction" : "forward",
+				"indexBounds" : {
+					"name" : [
+						"[\"alice\", \"alice\"]"
+					],
+					"balance" : [
+						"[MaxKey, MinKey]"
+					]
+				}
+			}
+		},
+		
+    发现是显示为 IXSCAN,表示使用了索引扫描,用的是name_1_balance_-1复合键索引,从fetch中取数据
+    
+仅返回创建了索引的字段
+
+    db.accountsWithIndex.explain().find({ name: "alice"}, {_id:0, name:1})
+    
+    返回数据
+		"winningPlan" : {
+			"stage" : "PROJECTION",
+			"transformBy" : {
+				"_id" : 0,
+				"name" : 1
+			},
+			"inputStage" : {
+				"stage" : "IXSCAN",
+				"keyPattern" : {
+					"name" : 1,
+					"balance" : -1
+				},
+				"indexName" : "name_1_balance_-1",
+				"isMultiKey" : false,
+				"multiKeyPaths" : {
+					"name" : [ ],
+					"balance" : [ ]
+				},
+				"isUnique" : false,
+				"isSparse" : false,
+				"isPartial" : false,
+				"indexVersion" : 2,
+				"direction" : "forward",
+				"indexBounds" : {
+					"name" : [
+						"[\"alice\", \"alice\"]"
+					],
+					"balance" : [
+						"[MaxKey, MinKey]"
+					]
+				}
+			}
+		},
+    
+    发现没有从fetch中取数据,直接进行了PROJECTION投影操作,直接用索引的键值
+    
+使用已经创建索引的字段进行排序
+
+    db.accountsWithIndex.explain().find().sort({name: 1, balance: -1})
+
+    返回数据
+    
+		"winningPlan" : {
+			"stage" : "FETCH",
+			"inputStage" : {
+				"stage" : "IXSCAN",
+				"keyPattern" : {
+					"name" : 1,
+					"balance" : -1
+				},
+				"indexName" : "name_1_balance_-1",
+				"isMultiKey" : false,
+				"multiKeyPaths" : {
+					"name" : [ ],
+					"balance" : [ ]
+				},
+				"isUnique" : false,
+				"isSparse" : false,
+				"isPartial" : false,
+				"indexVersion" : 2,
+				"direction" : "forward",
+				"indexBounds" : {
+					"name" : [
+						"[MinKey, MaxKey]"
+					],
+					"balance" : [
+						"[MaxKey, MinKey]"
+					]
+				}
+			}
+		},
+		
+    发现IXSCAN,非常棒,应该我们已经定义了复合索引 db.accountsWithIndex.createIndex({name: 1, balance: -1}),查询速度非常快
+    
+使用微创建索引的字段进行排序
+
+    db.accountsWithIndex.explain().find().sort({name: 1, balance: 1})
+
+    返回数据
+    
+		"winningPlan" : {
+			"stage" : "SORT",
+			"sortPattern" : {
+				"name" : 1,
+				"balance" : 1
+			},
+			"inputStage" : {
+				"stage" : "SORT_KEY_GENERATOR",
+				"inputStage" : {
+					"stage" : "COLLSCAN",
+					"direction" : "forward"
+				}
+			}
+		},
+
+    发现winningPlan是SORT,这就提示了这次排序命令效率不够高
+    
+### 删除索引
+
+    db.collection.dropIndex()
+    
+    如果需要更改某些字段上已经创建的索引
+    必须首先删除原有的索引,再重新创建新索引,否则,新索引不会包含原有文档
+    
+使用索引名称删除索引
+    
+    列出索引
+        db.accountsWithIndex.getIndexes()
+        
+    返回数据,这里name就是mongo创建的索引名称
+        {
+            "v" : 2,
+            "key" : {
+                "name" : 1
+            },
+            "name" : "name_1",
+            "ns" : "test.accountsWithIndex"
+        },
+        
+    删除一个单键索引
+        db.accountsWithIndex.dropIndex("name_1")
+        
+使用索引定义删除索引
+
+    db.accountsWithIndex.dropIndex({name: 1, balance: -1})
+        
+## 创建索引options
+
+    db.collection.createIndex(keys, options)
+    
+    options文档定义了创建索引时可以使用的一些参数,文档也可以设定索引的特性
+    
+### 索引的唯一性-唯一索引
+
+    文档主键上创建的默认索引
+        {
+            "v" : 2,
+            "key" : {
+                "_id" : 1
+            },
+            "name" : "_id_",
+            "ns" : "test.accountsWithIndex"
+        },
+        
+    这样一个文档主键索引,具有唯一性
+    
+创建一个具有唯一性的索引
+    
+    db.accountsWithIndex.createIndex({balance: 1}, {unique: true})
+    
+    查询索引
+        db.accountsWithIndex.getIndexes()
+        
+    发现"unique" : true,
+        {
+            "v" : 2,
+            "unique" : true,
+            "key" : {
+                "balance" : 1
+            },
+            "name" : "balance_1",
+            "ns" : "test.accountsWithIndex"
+        }
+
+    如果已有文档中的某个字段出现重复值,就不可以在这个字段创建唯一性索引
+    
+        db.accountsWithIndex.createIndex({name: 1}, {unique: true})
+        
+        返回
+        
+            {
+                "ok" : 0,
+                "errmsg" : "E11000 duplicate key error collection: test.accountsWithIndex index: name_1 dup key: { : \"bob\" }",
+                "code" : 11000,
+                "codeName" : "DuplicateKey"
+            }
+            
+        必须删除\"bob\" 才能创建
+        
+    如果新增的文档不包含唯一性索引字段,只有*第一篇*缺失该字段的文档可以被写入数据库,索引中该文档的键值被默认为null
+        
+        这里我们插入一篇文档没有balance字段
+        db.accountsWithIndex.insert({name: "charlie", lastAccess: new Date()})
+        
+        在插入一篇文档没有balance字段
+        db.accountsWithIndex.insert({name: "devid", lastAccess: new Date()})
+        
+        就会报错
+        index: balance_1 dup key: { : null }
+        
+        因为索引中该文档的键值被默认为null,在插入没有balance字段,还是null就报错
+        
+    复合键索引也可以具有唯一性,这种情况下,*不同的*文档之间,其所包含的复合键字段值的组合,不可以重复
+    
+### 索引的稀疏性
+
+    db.collection.createIndex(keys, options)
+    
+只将包含索引键字段的文档加入到索引中(即使索引键字段值为null)
+
+    db.accountsWithIndex.createIndex({balance: 1}, {sparse: true})
+    
+如果同一个索引既具有唯一性,又具有稀疏性,就可以保存*多篇*缺失索引键值的文档了
+
+    db.accountsWithIndex.createIndex({balance: 1}, {unique:true, sparse: true})
+    
+复合键索引也可以具有稀疏性,在这种情况下,只有在缺失复合键所包含的所有字段情况下,文档才不会被加入到索引中
+
+## 索引的生存时间
+
+针对日期字段,或者包含日期元素的数组字段,可以使用设定生存时间的索引,来自动删除字段值超过生存时间的文档
+
+    查询所有文档
+    db.accountsWithIndex.find()
+    
+    返回数据
+        { "_id" : ObjectId("5d4b0c252fe6b34cc3bcf8c4"), "name" : "alice", "balance" : 50, "currency" : [ "GBP", "USD" ] }
+        { "_id" : ObjectId("5d4b0c252fe6b34cc3bcf8c5"), "name" : "bob", "balance" : 20, "currency" : [ "AUD", "USD" ] }
+        { "_id" : ObjectId("5d4b0c252fe6b34cc3bcf8c6"), "name" : "bob", "balance" : 300, "currency" : [ "CNY", "USD" ] }
+        { "_id" : ObjectId("5d4bb41db0dd60b4e9a52763"), "name" : "devid", "lastAccess" : ISODate("2019-08-08T05:33:17.140Z") }
+    
+    在lastAccess字段上创建一个生存时间是20秒的索引
+        db.accountsWithIndex.createIndex({lastAccess: 1}, {expireAfterSeconds: 20})
+        
+    查询索引数据expireAfterSeconds是20秒
+    
+        {
+            "v" : 2,
+            "key" : {
+                "lastAccess" : 1
+            },
+            "name" : "lastAccess_1",
+            "ns" : "test.accountsWithIndex",
+            "expireAfterSeconds" : 20
+        }
+
+    过20秒去查询一下
+        db.accountsWithIndex.find()
+        
+    返回
+        { "_id" : ObjectId("5d4b0c252fe6b34cc3bcf8c4"), "name" : "alice", "balance" : 50, "currency" : [ "GBP", "USD" ] }
+        { "_id" : ObjectId("5d4b0c252fe6b34cc3bcf8c5"), "name" : "bob", "balance" : 20, "currency" : [ "AUD", "USD" ] }
+        { "_id" : ObjectId("5d4b0c252fe6b34cc3bcf8c6"), "name" : "bob", "balance" : 300, "currency" : [ "CNY", "USD" ] }
+
+    发现少了存在lastAccess字段数据
+    
+复合键索引*不具备*生存时间特性
+
+当索引键是包含日期元素的数组字段时,数组中*最小*的日期将被用来计算文档是否已经过期
+
+数据库使用一个后台线程来监测和删除过期的文档,删除操作可能有一定的延迟
+    
+# 第6章 MongoDB实战之仓位管理服务
+        
 # 第10章 MongoDB之数据安全
 
 # 第11章 MongoDB之管理工具
