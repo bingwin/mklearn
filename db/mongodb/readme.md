@@ -376,7 +376,7 @@ mongo基于JavaScript的客户端工具
 
 ### insert命令
 
-db.<collection>.insert()既可以写入一个单独的文档,也可以写入多个文档
+    db.<collection>.insert()既可以写入一个单独的文档,也可以写入多个文档
 
     db.<collection>.insert(
         <document or array of documents>,
@@ -459,7 +459,7 @@ db.<collection>.insert()既可以写入一个单独的文档,也可以写入多�
     
 当save命令处理一个新文档的时候,它会调用insert()命令完成写入文档操作
 
-所有db.<collection>.save()返回的结果文档与db.<collection>.insert()是一样的
+所有 ```db.<collection>.save()``` 返回的结果文档与```db.<collection>.insert()```是一样的
 
 ### 文档主键_id
 
@@ -555,7 +555,7 @@ db.<collection>.insert()既可以写入一个单独的文档,也可以写入多�
     
 ###比较操作符
 
-语法:{<field>:{$<operator>:<value>}}
+```语法:{<field>:{$<operator>:<value>}}```
 
     $eq 匹配字段值相等
     $ne 匹配字段值不等
@@ -598,7 +598,7 @@ $nin 匹配字段值与任何查询值都不等类似python not in操作
     
 ## 逻辑操作符
 
-$not 匹配筛选条件不成立的文档
+### $not 匹配筛选条件不成立的文档
 
     语法:{<field>:{$not: {<operator-expression>}}}
     
@@ -610,7 +610,7 @@ $not 匹配筛选条件不成立的文档
     
         db.accounts.find({"_id.type": {$not: {$eq: "savings"}}}) # 复合主键查询
 
-$and 匹配多个筛选条件全部成立的文档
+### $and 匹配多个筛选条件全部成立的文档
 
     语法:{$and:[{<expression1>}, {<expression12>}, {<expression3>}]}
     
@@ -634,7 +634,7 @@ $and 匹配多个筛选条件全部成立的文档
             "balance": {$gt:100, $lt: 500}
          })
 
-$or 匹配至少一个筛选条件成立的文档
+### $or 匹配至少一个筛选条件成立的文档
 
     语法: {$or:[{<expression1>}, {<expression12>}, {<expression3>}]}
 
@@ -658,7 +658,7 @@ $or 匹配至少一个筛选条件成立的文档
             {balance:{$gt:500}}
         ]})
 
-$nor 匹配多个筛选条件全部不成立的文档
+### $nor 匹配多个筛选条件全部不成立的文档
 
     语法: {$nor:[{<expression1>}, {<expression12>}, {<expression3>}]}
     
@@ -679,7 +679,7 @@ $nor 匹配多个筛选条件全部不成立的文档
 
 ## 字段操作符
 
-$exists 匹配包含查询字段的文档
+### $exists 匹配包含查询字段的文档
 
     语法:{field: {$exists: <boolean>}}
     
@@ -698,7 +698,7 @@ $exists 匹配包含查询字段的文档
             }
         })
 
-$type 匹配字段类型符合查询值的文档
+### $type 匹配字段类型符合查询值的文档
 
     语法: 
         {field: {$type: <BSON type>}}
@@ -729,7 +729,7 @@ $type 匹配字段类型符合查询值的文档
     
 ## 数组操作符
 
-数组操作符$all
+### 数组操作符$all
 
     语法 {<field>:{$all: [<valie1>, <valie2>]}}
     
@@ -753,7 +753,7 @@ $type 匹配字段类型符合查询值的文档
     读取联系电话包含22222222和3333333的银行账户的文档
         db.accounts.find({contact: {$all:[["22222222", "3333333"]]}})
     
-数组操作符 $elemMatch
+### 数组操作符 $elemMatch
 
     语法 {<field>:{$elemMatch: [<query1>, <query2>]}}
     
@@ -774,7 +774,7 @@ $type 匹配字段类型符合查询值的文档
 
 ## 运算操作符
 
-    $regex 匹配满足正则表达式的文档
+### $regex 匹配满足正则表达式的文档
     
     语法:
         {<field>: {: /pattgern/,: '<options>'}}
@@ -792,7 +792,7 @@ $type 匹配字段类型符合查询值的文档
         
 ## 文档游标
 
-db.collection.find()返回一个文档集合游标
+```db.collection.find()```返回一个文档集合游标
 
 在不迭代游标的情况下,只列出前20个文档
 
@@ -850,16 +850,16 @@ cursor.next() 下一个游标
         printjson(myCursor.next());
     }
     
-更方便的遍历游标 cursor.forEach(<function>)
+更方便的遍历游标 ```cursor.forEach(<function>)```
 
     var myCursor = db.accounts.find({name: "george"});
     myCursor.forEach(printjson)
     
-cursor.limit(<number>)只是返回要求的文档
+```cursor.limit(<number>)```只是返回要求的文档
 
     db.accounts.find({name: "george"}).limit(1);
 
-cursor.skip(<offset>)跳过第一篇,返回第一篇之后的文档
+```cursor.skip(<offset>)```跳过第一篇,返回第一篇之后的文档
 
     db.accounts.find({name: "george"}).skip(1);
     
@@ -869,7 +869,7 @@ cursor.skip(<offset>)跳过第一篇,返回第一篇之后的文档
     
     证明:不使用limit操作
     
-cursor.count(<applySkipLimit>)
+```cursor.count(<applySkipLimit>)```
 
 默认情况下,<applySkipLimit>为false,即cursor.count()不会考虑cursor.skip和cursor.limit的效果
 
@@ -886,7 +886,7 @@ cursor.count(<applySkipLimit>)
     
 当数据库分布式结构较为复杂时,元数据中的文档数量可能不准确,在这种情况下,应该避免应用不提供筛选条件的cursor.count()函数,而使用聚合管道来计算的文档数量
 
-cursor.sort(<document>)排序
+```cursor.sort(<document>)```排序
 
     这里的<document>定义了排序的要求
     语法: {field: ordering} 1表示有小及大的正向排序, -1表示逆向排序
@@ -919,7 +919,7 @@ cursor.sort()在cursor.skip()和cursor.limit()之前执行
     
 ## 文档投影
 
-db.accounts.find(<query>, <projection>)
+```db.accounts.find(<query>, <projection>)```
 
 不使用投影文档,db.accounts.find()返回符合筛选条件的完整的文档,而使用投影可以有选择的返回文档中的部分字段
 
@@ -983,7 +983,7 @@ db.accounts.find(<query>, <projection>)
 
 db.collection.update()
 
-语法:db.<collection>.update(<query>, <update>, <options>)
+语法:```db.<collection>.update(<query>, <update>, <options>)```
 
     <query> 文档定义了更新操作筛选文档的条件
     <update> 文档定义了更新的内容
@@ -1027,7 +1027,7 @@ db.collection.update()
     
 $set 更新或新增字段
 
-语法: {$set: {<field1>:<values1>, ....}}
+语法: ```{$set: {<field1>:<values1>, ....}}```
 
     查看jack的银行账户文档
     db.accounts.find({name: "jack"}).pretty()
@@ -1093,7 +1093,7 @@ $set 更新或新增字段
 
 $unset 删除字段
 
-语法: {$unset: {<field1>: "", ....}}
+语法: ```{$unset: {<field1>: "", ....}}```
 
     删除jack的银行余额和开户地点
     
@@ -1124,7 +1124,7 @@ $unset 删除字段
         
 $rename 重命名字段
 
-语法: {$rename: {<field1>: <newName1>, <field1>: <newName2>, ....}}
+语法: ```{$rename: {<field1>: <newName1>, <field1>: <newName2>, ....}}```
 
     如果 $rename 命令要重命名的字段并不存在,那么文档内容不会被改变
     
@@ -1206,7 +1206,7 @@ $rename 重命名字段
 
 $inc 加减字段值
 
-语法: {$inc: {<field1>: <amount1>, ....}}
+语法: ```{$inc: {<field1>: <amount1>, ....}}```
 
     
     更新david的账户余额
@@ -1233,7 +1233,7 @@ $inc 加减字段值
         
 $mul 相乘字段值
 
-语法:{$mul: {<field1>: <number1>, ....}}
+语法:```{$mul: {<field1>: <number1>, ....}}```
 
     更新david的账户余额
 
@@ -1259,7 +1259,7 @@ $mul 相乘字段值
 
 $min 比较减小字段值
 
-语法:{$mul: {<field1>: <value1>, ....}}
+语法:```{$mul: {<field1>: <value1>, ....}}```
 
     原数据:
 
@@ -1312,6 +1312,757 @@ $max 比较增大字段值
 
 ## 数组更新操作符
 
+### $addToSet 像数组中增添元素
+
+    {$addToSet: {<field1>: <value1>, .....}}
+
+向数组字段中添加元素
+
+查看karen的银行账户文档
+
+    db.accounts.find(
+        {name: "karen"},
+        {name: 1, contact: 1, _id: 0}
+    ).pretty()
+    
+向karen的账户文档中添加联系方式
+
+    db.accounts.update(
+        {name: "karen"},
+        {$addToSet: {contact: "China"}}
+    ).pretty()
+    
+    返回报错
+        China已经存在
+    
+如果要插入的值已经存在数组字段中,则$addToSet不会在添加重复值
+
+注意一下,使用$addToSet插入数组和文档时,插入值中的字段顺序也和已有值重复的时候,才被算作重复值被忽略
+
+向karen的账户文档中添加新的联系方式
+
+    db.accounts.update(
+        {name: "karen"},
+        {$addToSet: {
+            contact: {
+                "primaryEmail": "xxx@gmail.com",
+                "secondaryEmail": "yyy@gmail.com",
+            }
+        }}
+    )
+    
+    返回数据,发现可以插入数据,证明只有完完全全相同数据才会被$addToSet拒绝插入
+    
+        {
+            "name" : "karen",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                }
+            ]
+        }
+
+向karen的账户文档中添加多个联系方式
+
+    db.accounts.update(
+        {name: "karen"},
+        {$addToSet: {
+            contact: [
+                "contact1", "contact2"
+            ]
+        }}
+    )
+    
+    返回数据,出现内嵌数组方式插入
+    
+        {
+            "name" : "karen",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact1",
+                    "contact2"
+                ]
+            ]
+        }
+    
+    $addToSet会将数组插入被更新的数组字段中,成为内嵌数组
+    如果想要将多个元素直接添加到数组字段中,则需要使用$each操作符
+    
+向karen的账户文档中添加多个联系方式(非内嵌数组文档方式)
+
+    db.accounts.update(
+        {name: "karen"},
+        {$addToSet: {
+            contact: { 
+                $each: ["contact1", "contact2"]
+             }
+        }}
+    )
+    
+    返回数据
+        {
+            "name" : "karen",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact1",
+                    "contact2"
+                ],
+                "contact1",
+                "contact2"
+            ]
+        }
+    
+### $pop 从数组中移除元素
+
+    {$pop: {<field>: <-1 | 1>, ....}}
+
+从数组字段中删除元素
+
+从karen的账户文档中删除最后一个联系方式
+
+    db.accounts.update(
+        {name: "karen"},
+        {$pop: {contact: 1}}
+    )
+    
+    返回数据,删除了数组中最后元素
+        {
+            "name" : "karen",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact1",
+                    "contact2"
+                ],
+                "contact1"
+            ]
+        }
+    
+从karen的账户文档中删除内嵌数组的联系方式 "contact.5"
+
+    db.accounts.update(
+        {name: "karen"},
+        {$pop: { "contact.5": -1}}
+    )
+    
+    返回数据
+        {
+            "name" : "karen",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact2"
+                ],
+                "contact1"
+            ]
+        }
+    
+    删除数组中最后一个元素后,会留下空数组
+    
+    注意一点,$pop操作符只能应用在数组字段上
+
+### $pull 从数组中有选择性地移除元素
+
+    {$pull: {<field: <value|condition>, ....}}
+
+从数组字段中删除特定的元素
+
+为了演示方便,首先将karen的账户文档复制成为一篇新的文档,并且吧新文档的用户姓名设置为lawrence
+
+    db.accounts.find(
+        {name: "karen"},
+        {_id: 0}
+    ).forEach( function(doc){
+        var newDoc = doc;
+        newDoc.name = "lawrence";
+        db.accounts.insert(newDoc);
+    })
+    
+    查看文档
+    
+    db.accounts.find(
+             {name: "lawrence"},
+              {name: 1, contact: 1, _id: 0}
+          ).pretty()
+          
+从karen的联系方式中删除包含hi字母的元素
+
+事实上,既然$pull操作符本身只能作用在数组元素上,我们便不需要在额外用 $elemMatch 操作符了
+
+可以将$pull操作符处理的数组元素当做普通的顶层字段来应用筛选条件
+
+    db.accounts.update(
+        {name: "karen"},
+        {$pull: { "contact": {$regex: /hi/}}}
+    )
+    
+当然,如果数组元素本身就是一个内嵌数组,我们也可以使用$elemMatch来堆这个内嵌数组进行删除
+
+    db.accounts.update(
+        {name: "karen"},
+        {$pull: { "contact": {$elemMatch: {$eq: "22222222"}}}}
+    )
+    
+    返回,删除了整个内嵌数组元素
+        {
+            "name" : "karen",
+            "contact" : [
+                "Beijing",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact2"
+                ],
+                "contact1"
+            ]
+        }
+
+### $pullAll 从数组中有选择性地移除元素
+
+    {$pullAll: {<field>: [<value1>, <value2>, ....]}}
+    
+从数组字段中删除特定元素
+
+    {$pullAll: {<field>: [<value1>, <value2>, ....]}}
+
+相当于
+
+    {$pull: {<field>: {$in: [<value1>, <value2>, ....]}}}
+    
+如果要删除的元素是一个数组,数组元素的值和排列都必须和被删除的数组完全一样.
+
+如果要删除的元素是内嵌文档
+
+    $pop命令只需要匹配一个就能删除内嵌文档
+    $pullAll命令必须完全匹配,顺序也需要相同才能删除
+
+### $push 向数组中添加元素
+
+    {$push: {<field>: <value1>, ....}}
+    
+$push和$addToset命令相似,但是$push命令的功能更强大
+
+和$addToSet命令一样,如果$push命令中指定的数组字段不存在,这个字段会被添加到原文档中
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: "new element"}}
+    )
+    
+    返回数据 
+        {
+            "name" : "lawrence",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact2"
+                ],
+                "contact1"
+            ],
+            "newArray" : [
+                "new element",
+                "new element",
+                "new element",
+                "new element"
+            ]
+        }
+        
+和$addToSet命令一样, $push操作符也可以和$each搭配使用,给内嵌数组添加元素而不是插入一个内嵌数组
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: {
+            $each: [2,3,4]
+        }}}
+    )
+    
+    返回数据
+    
+        {
+            "name" : "lawrence",
+            "contact" : [
+                [
+                    "22222222",
+                    "3333333"
+                ],
+                "Beijing",
+                "China",
+                {
+                    "secondaryEmail" : "yyy@gmail.com",
+                    "primaryEmail" : "xxx@gmail.com"
+                },
+                {
+                    "primaryEmail" : "xxx@gmail.com",
+                    "secondaryEmail" : "yyy@gmail.com"
+                },
+                [
+                    "contact2"
+                ],
+                "contact1"
+            ],
+            "newArray" : [
+                "new element",
+                "new element",
+                "new element",
+                "new element",
+                2,
+                3,
+                4
+            ]
+        }
+
+### 使用$position操作符将元素插入到数组的指定位置
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: {
+            $each: ["pos1"],
+            $position: 0
+        }}}
+    )
+    
+    返回
+        "newArray" : [
+            "pos1",
+            2,
+            3,
+            4,
+            "new element",
+        ]
+    
+    那么插入最后就是 $position: -1
+    
+### 使用$sort操作符对数组进行排序
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: {
+            $each: ["sort1"],
+            $sort: 1
+        }}}
+    )
+    
+    返回数据
+        "newArray" : [
+            2,
+            2,
+            3,
+            3,
+            4,
+            4,
+            "new element",
+            "new element",
+            "new element",
+            "new element",
+            "pos1",
+            "pos1",
+            "sort1"
+        ]
+        
+    注意这里的$sort必须配合$push和$each操作符
+    
+如果插入的元素是内嵌文档,也可以根据内嵌文档的字段值排序
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: {
+            $each: [{key: "sort", value: 100}, {key: "sort", value: 200}],
+            $sort: {value: -1}
+        }}}
+    )
+    
+    返回数据
+        "newArray" : [
+            {
+                "key" : "sort",
+                "value" : 200
+            },
+            {
+                "key" : "sort",
+                "value" : 100
+            },
+            2,
+            2,
+            3,
+            3,
+            4,
+            4,
+            "new element",
+            "new element",
+            "new element",
+            "new element",
+            "pos1",
+            "pos1",
+            "sort1"
+        ]
+        
+如果不想插入元素,只想对文档中数组字段进行排序
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: {
+            $each: [],
+            $sort: 1
+        }}}
+    )
+    
+    返回数据
+    
+        "newArray" : [
+            2,
+            2,
+            3,
+            3,
+            4,
+            4,
+            "new element",
+            "new element",
+            "new element",
+            "new element",
+            "pos1",
+            "pos1",
+            "sort1",
+            {
+                "key" : "sort",
+                "value" : 100
+            },
+            {
+                "key" : "sort",
+                "value" : 200
+            }
+        ]
+        
+使用$slice来截取部分数组
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$push: {newArray: {
+            $each: ["slice1"],
+            $slice: -8
+        }}}
+    )
+    
+    返回数据
+    
+        "newArray" : [
+            "new element",
+            "new element",
+            "pos1",
+            "pos1",
+            "sort1",
+            {
+                "key" : "sort",
+                "value" : 100
+            },
+            {
+                "key" : "sort",
+                "value" : 200
+            },
+            "slice1"
+        ]
+
+    或者不插入直接截取
+        db.accounts.update(
+            {name: "lawrence"},
+            {$push: {newArray: {
+                $each: [],
+                $slice: 6
+            }}}
+        )
+
+这三个操作符的执行顺序是
+    
+    $position
+    $sort
+    $slice
+    
+写在命令中的操作符顺序并不重要,并不会影响命令的执行顺序
+    
+        db.accounts.update(
+            {name: "lawrence"},
+            {$push: {newArray: {
+                $each: ["push1", "push2"],
+                $position: 2,
+                $sort: 1,
+                $slice: 6
+            }}}
+        )
+        
+        返回数据
+            "newArray" : [
+                "new element",
+                "new element",
+                "pos1",
+                "pos1",
+                "push1",
+                "push2"
+            ]
+
+## $站位操作符
+
+    db.collection.update(
+        {<array>: <query selector>},
+        {<update operator>: {"<array>.$": value}}
+    )
+    
+更新数组中的特定元素
+
+$是数组中第一符合筛选条件的数组元素的占位符,搭配更新操作符使用,可以堆满足筛选条件的数组元素进行更新
+
+    db.accounts.update(
+        {name: "lawrence", newArray: "pos1"},
+        {$set: {
+            "newArray.$": "updated"
+        }}
+    )
+    
+    返回数据
+        "newArray" : [
+            "new element",
+            "new element",
+            "updated",
+            "pos1",
+            "push1",
+            "push2"
+        ]
+    
+更新数组中的所有元素
+
+    db.accounts.update(
+        {name: "lawrence"},
+        {$set: {
+            "contact.0.$[]": "88888888"
+        }}
+    )
+    
+    返回数据
+    
+		[
+			"88888888",
+			"88888888"
+		],
+
+## 更新文档的options
+
+options 文档提供了update命令的更多选项
+
+### multi
+
+```{multi: <boolean>}```
+
+更新多个文档,到目前为止,我们在update命令中使用的筛选条件只对应于一篇文档
+
+在默认情况下,即使筛选条件对应了多篇文档, update命令仍然只会更新一篇文档
+
+    db.accounts.update(
+        {},
+        {$set: {
+            "currency": "USD"
+        }},
+        {multi: true}
+    )
+    
+注意:
+
+    mongodb只能保证单个文档操作的原子性,不能保证多个文档操作的原子性
+    更新多个文档操作虽然在单一线程中执行,但是线程在执行过程可能被挂起,以便其他线程也有机会堆数据进行操作
+    如果需要保证多个文档操作是的原子性,就需要使用mongodb4.0版本引入的事务功能进行操作
+    有关事务功能的讲解,大家可以参考mongodb4.0新特性课程
+    
+### upsert
+
+在默认情况下,如果update命令中的筛选条件没有匹配任何文档,则不会进行任何操作
+
+将upsert选项设置为true,如果update命令中的筛选条件没有匹配任何文档,则会创建新的文档
+
+    db.accounts.update(
+        {name: "maggie"},
+        {$set: {balance: 700}},
+        {upsert: true}
+    )
+    
+    返回内容,没有匹配数据,但是更新了数据
+    
+        WriteResult({
+            "nMatched" : 0,
+            "nUpserted" : 1,
+            "nModified" : 0,
+            "_id" : ObjectId("5d4efa696d1ce6b351a57824")
+        })
+
+    文档内容
+    
+        { "_id" : ObjectId("5d4efa696d1ce6b351a57824"), "name" : "maggie", "balance" : 700 }
+        
+不过,如果无法从筛选条件中推断出确定的字段值,新创建的文档将不会包含筛选条件涉及的字段
+
+    db.accounts.update(
+        {balance: {$gt: 20000000}},
+        {$set: {name: "nick"}},
+        {upsert: true}
+    )
+    
+    返回数据
+    
+        { "_id" : ObjectId("5d4efb806d1ce6b351a57839"), "name" : "nick" }
+        
+发现这次没有给我们创建新的balance字段,因为mongo无法确认balance的值.
+
+另一个可以用来更新文档的命令
+
+```db.<collection>.save(<document>)```
+
+如果document文档中包含了_id字段,save()命令将会调用db.collection.update()命令(upsert:true)
+
+    db.accounts.save({_id: ObjectId("5d4e597430f668d9f5f89bd2"), name: "jack", balance: 100})
+    
+包含一个不存在的_id
+
+    db.accounts.save({_id: "fdfdsada", name: "jack", balance: 100})
+    
+我们来看一下数据
+
+    { "_id" : ObjectId("5d4e597430f668d9f5f89bd2"), "name" : "jack", "balance" : 100 }
+    { "_id" : ObjectId("5d4e597430f668d9f5f89bd3"), "name" : "karen", "balance" : 2500 }
+    { "_id" : ObjectId("5d4e698030f668d9f5f89bd4"), "name" : "lawrence", "balance" : 2500 }
+    { "_id" : ObjectId("5d4efa696d1ce6b351a57824"), "name" : "maggie", "balance" : 700 }
+    { "_id" : ObjectId("5d4efb806d1ce6b351a57839"), "name" : "nick" }
+    { "_id" : ObjectId("5d4eff25735b9926d6c95922"), "name" : "jack", "balance" : 100 }
+    { "_id" : "fdfdsada", "name" : "jack", "balance" : 100 }
+    
+## 删除文档
+
+    删除集合
+    删除特定文档
+    db.collection.remove()
+    
+```db.<collection>.remove(<query>, <options>)```
+
+```<query>```文档定义了删除操作是筛选文档的条件
+
+```<options>```文档定义了删除操作的参数
+
+删除余额为50的银行账户文档
+
+    db.accounts.remove({balance: 50})
+    
+在默认情况下,remove命令会删除所有符合筛选条件的文档
+
+如果只想删除满足筛选条件的第一篇文档,可以使用justOne选项
+
+删除一篇余额小于100的银行账户文档
+
+    db.accounts..remove(
+        {balance: {$lt: 100}}, 
+        {justOne: true}
+    )
+    
+删除集合内所有的文档
+
+    db.accounts.remove({})
+
+## 删除集合
+
+    db.accounts.drop()
+    
+    db.<collection>.drop({wirteConcern: <document>})
+    
+这里的wirteConcern文档定义了本次集合删除操作的安全写级别
+
+drop命令可以删除整个集合.包括集合中的所有文档,以及集合的索引
+
+    db.accounts.drop()
+    
+    show collections
+    
+如果集合中文档数量很多,使用remove命令删除所有文档的效率不高
+
+这种情况下,更加有效率的方法,是使用drop命令删除集合,然后在创建集合并创建索引
+    
 # 第4章 MongoDB基本操作进阶之聚合
 
 聚合操作是指: 将一系列不同的操作按照一定顺序应用到数据库的文档中
