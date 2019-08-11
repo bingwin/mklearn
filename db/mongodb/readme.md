@@ -3677,10 +3677,279 @@ mongo怎么表达这样数据结构?
         myset:PRIMARY
         
 # 第9章 MongoDB之数据分片
+## 横向扩展-分片带来的可扩展性
+
+复制集
+
+    高可用性
+    数据安全
+    
+数据库分片
+
+    系统可扩展性
+    
+![img]( ./img/32.png "确定开发技术栈")
+
+纵向扩展
+
+    增强单一服务器的性能
+    简单的架构的运维模型
+    单一服务器性能上限
+    
+横向扩展
+
+    增加提供服务的服务器数量
+    更高的可扩展性
+    增加架构的运维的复杂度
+    
+mongodb提供的系统可扩展性的解决方法是数据库分片
+
+    把整合数据库的数据分到一个个分片,每个分片可以在不同的机器上运行,分布式存储.
+    
+分片集群
+
+    配置服务器:保存分片的元数据
+    mongos:路由
+    app server:应用服务器
    
+![img]( ./img/33.png "确定开发技术栈")
+
+    每个分片存储一部分数据,可以部分为复制集
+    mongos路由可以将客户请求发送至相关的分片
+    配置服务器保持机器配置的元数据,可以部署为复制集
+    
+## 分片集群的结构
+
+不是所有的集合都需要使用分片机制的,有些集合不需要使用分片,我们就在数据库中保存一个主分片.
+
+    集群中每一个数据库都会选择一个分片作为主分片
+    主分片存储所有不需要分片的集合
+    创建数据库时,数据最少的分片被选为主分片
+    
+注意:尽量避免人为操作去更改主分片存储的数据库
+
+## 分片片键
+
+决定文档分布到哪个数据库上
+
+    片键值被用来将集合中的文档划分为数据段
+    片键必须对应一个索引或索引前缀(单键或复合键)
+    可以使用片键值的哈希值来生成哈希片键
+
+文档 ```{x: 7, y: "abc", z: true}```
+
+选择片键
+
+    片键值的范围更广(可使用复合片键扩大范围)
+    片键值的分布更平衡(可使用用复合片键平衡分布)
+    片键值不要单向增大/减小(可使用哈希片键)
+
+### 利用x值分布数据
+
+![img]( ./img/34.png "确定开发技术栈")
+
+### 利用x的hash值分布数据
+
+![img]( ./img/35.png "确定开发技术栈")
+
+## 动态的平衡 - 分片数据段与平衡器
+
+数据段的分裂
+
+![img]( ./img/36.png "确定开发技术栈")
+
+    数据尺寸过大或包含过多文档是触发数据段分裂
+    只有新增/更新文档是才可能自动触发数据的分裂
+    数据段分裂通过更新元数据来实现
+    
+集群的平衡
+
+![img]( ./img/37.png "确定开发技术栈")
+
+    后台运行的平衡器负责监视和调整集群的平衡
+    当最大和最小分片之间的数据段数量相差过大的时触发
+    集群中添加或移除分片时也会触发
+    
+## 分片集群的重要成员 - 配置服务器
+    
+    存储各分片数据段列表和数据段范围
+    存储集群的认证和授权配置
+    不同的集群不要共用配置服务器
+    
+![img]( ./img/38.png "确定开发技术栈")
+
+    配置服务器部署成复制集
+    主节点故障时,如果选举出现故障配置服务器进入只读模式
+    只读模式下,数据段分裂和集群平衡都不可执行
+    整个复制集故障是,分片集群不可用状态
+
+## 分片查询
+
+![img]( ./img/39.png "确定开发技术栈")
+
+    当用户查询x=7,mongos路由进行查询元数据,在查询对应的数据库
+    
+如果当用户查询y=11,y不存在元数据中片键中,mongos会发送给所有的分片继续查询
+
+![img]( ./img/40.png "确定开发技术栈")
+
+    客户请求应发给mongos,而不是分片服务器
+    当查询包含分片片键是,mongos将查询发送到指定分片
+    否则mongos将查询发送到所有的分片,并汇总所有查询结果
+    
 # 第10章 MongoDB之数据安全
 
+## 数据库认证
+
+使用mongo shell创建用户
+
+    use admin;
+    db.createUser(
+        {
+            user: "myUserAdmin",
+            pwd: "passwd",
+            roles: ["userAdminAnyDatabase"]
+        }
+    )
+    
+### 启用身份认证一
+
+    重启mongod进程
+        docker stop mymongo && docker rm $_
+        
+    启动mongod进程
+        docker run --name mymongo -v /mymongo/data:/data/db -d mongo:4 mongod --auth
+        
+使用用户名和密码进行省份验证
+
+    docker exec -it mymongo bash
+    mongo -u "myUserAdmin" -p "passwd" --authenticationDatabase "admin"
+    
+authenticationDatabase代表要登录验证的数据库
+    
+### 启用身份认证二
+
+使用db.auth()进行身份验证
+    
+    use admin;
+    db.auth("myUserAdmin", "passwd")
+    
+注意我们创建用户数据库都是admin
+
+## 数据库授权之内建角色
+
+权限 = 在哪里 + 做什么
+
+```{resource: {db: "test", collection: ""}, actions: ["find", "update"]}```
+
+    test中所有集合,actions能执行的操作find,update
+
+```{resource: {cluster: true}, actions: ["shutdown"]}```
+
+    cluster集群,停止操作
+    
+角色 = 一组权限的集合
+
+    read - 读取当前数据库中所有非系统集合
+    readWrite - 读写当前数据库中所有非系统集合
+    dbAdmin - 管理当前数据库
+    userAdmin - 管理当前数据库中的用户和角色
+    read/readWrite/dbAdmin/userAdminAnyDatabase - 对所有数据库执行操作(只在admin数据库中提供)
+    
+授权
+    
+    将角色赋予用户
+    
+创建一个只能读取test数据库的用户
+
+    use test;
+    db.createUser(
+        {
+            user: "testReader",
+            pwd: "passwd",
+            roles: [{role: "read", db: "test"}]
+        }
+    )
+    
+    mongo -u "testReader" -p "passwd" --authenticationDatabase "test"
+
+## 数据库授权之自定义角色
+
+创建一个只能读取accounts集合的用户
+
+    创建一个自定义角色
+
+        use test;
+        db.createRole(
+            {
+                role: "readAccounts",
+                privileges: [
+                    {resource: {db: "test", collection: "accounts"}, actions: ["find"]}
+                ]
+                roles: []
+            }
+        )
+    
+    授权
+    
+        db.createUser(
+            {
+                user: "accountsReader",
+                pwd: "passwd",
+                roles: ["readAccounts"]
+            }
+        )
+        
+    mongo -u "accountsReader" -p "passwd" --authenticationDatabase "test"
+
 # 第11章 MongoDB之管理工具
+
+## 数据处理工具
+
+### mongoexport
+
+    将数据导出为json或csv格式文件
+    需要对操作数据库具备read权限
+    
+创建执行mongoexport的用户
+
+使用mongo shell创建用户
+    
+    use admin;
+    db.createUser(
+        {
+            user: "readUser",
+            pwd: "passwd",
+            roles: ["readAnyDatabase"]
+        }
+    )
+
+导出csv文件
+
+    mongoexport --db test --collection accounts --type=csv --fields name,balance --out /opt/backups/accounts.csv 
+        -u readUser -p passwd --authenticationDatabase admin
+        
+查看
+
+    cat /opt/backups/accounts.csv
+    
+导出内嵌文档字段 name.firstName name.lastName
+
+    mongoexport --db test --collection accounts --type=csv --fields name.firstName,name.lastName,balance --out /opt/backups/accounts.csv 
+        -u readUser -p passwd --authenticationDatabase admin
+
+导出json文件
+
+    mongoexport --db test --collection accounts --type=json --fields name,balance --out /opt/backups/accounts.json 
+        -u readUser -p passwd --authenticationDatabase admin
+        
+查看
+
+    cat /opt/backups/accounts.json
+    
+注意:导出json文件是,--fields选项是可选的
+
+mongoimport
 
 # 第12章 MongoDB之故障诊断
 
