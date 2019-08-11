@@ -3906,7 +3906,7 @@ authenticationDatabase代表要登录验证的数据库
 
 ## 数据处理工具
 
-### mongoexport
+### mongoexport数据导出
 
     将数据导出为json或csv格式文件
     需要对操作数据库具备read权限
@@ -3924,7 +3924,7 @@ authenticationDatabase代表要登录验证的数据库
         }
     )
 
-导出csv文件
+**导出csv文件**
 
     mongoexport --db test --collection accounts --type=csv --fields name,balance --out /opt/backups/accounts.csv 
         -u readUser -p passwd --authenticationDatabase admin
@@ -3938,7 +3938,7 @@ authenticationDatabase代表要登录验证的数据库
     mongoexport --db test --collection accounts --type=csv --fields name.firstName,name.lastName,balance --out /opt/backups/accounts.csv 
         -u readUser -p passwd --authenticationDatabase admin
 
-导出json文件
+**导出json文件**
 
     mongoexport --db test --collection accounts --type=json --fields name,balance --out /opt/backups/accounts.json 
         -u readUser -p passwd --authenticationDatabase admin
@@ -3949,7 +3949,170 @@ authenticationDatabase代表要登录验证的数据库
     
 注意:导出json文件是,--fields选项是可选的
 
-mongoimport
+**使用查询语句筛选导出文档--query**
+
+    mongoexport --db test --collection accounts --type=json --fields name,balance --out /opt/backups/accounts.json 
+        -u readUser -p passwd --authenticationDatabase admin --query '{balance: {$gte: 100}}'
+        
+查看
+
+    cat /opt/backups/accounts.json
+    
+**mongoexport默认会连接本地的mongo,我们需要连接线上的 --host --port**
+
+    mongoexport --db test --collection accounts --type=json --fields name,balance --out /opt/backups/accounts.json 
+        -u readUser -p passwd --authenticationDatabase admin --host 127.0.0.1 --port 27017
+        
+查看
+
+    cat /opt/backups/accounts.json
+    
+**使用 --limit --skip --sort选项**
+
+    导出几篇文档,掉过几篇文档,排序
+
+    mongoexport --db test --collection accounts --type=json --fields name,balance --out /opt/backups/accounts.json 
+        -u readUser -p passwd --authenticationDatabase admin --limit 3 --skip 1 --sort '{balance:1}'
+
+### mongoimport数据导入
+
+    将数据有json或csv格式文件导入
+    
+需要对操作的数据库具备readWrite权限
+
+    use admin;
+    db.createUser(
+        {
+            user: "writeUser",
+            pwd: "passwd",
+            roles: ["readWriteAnyDatabase"]
+        }
+    )
+    
+查看导入csv文件
+
+    cat /opt/backups/accounts.csv
+    
+![img]( ./img/41.png "确定开发技术栈")
+    
+**导入csv文件--headerline是csv表头**
+
+    mongoimport --db test --collection importAccounts --type csv 
+        --headerline
+        --file /opt/backups/accounts.csv
+        -u writeUser -p passwd --authenticationDatabase admin
+        
+查看导入文档,不进入mongo shell的查询方法
+
+    mongo -u writeUser -p passwd --authenticationDatabase admin 
+        --quiet
+        --eval 'db.importAccounts.find()'
+        
+注意:导入数据mongo会自动创建主键
+        
+**在导入前--drop集合,删除原有数据**
+
+    mongoimport --db test --collection importAccounts --type csv
+        --headerline
+        --file /opt/backups/accounts.csv
+        --drop
+        -u writeUser -p passwd --authenticationDatabase admin
+    
+**自定义字段名称--fields**
+
+    mongoimport --db test --collection importAccounts
+        --type csv
+        --fields firstName,lastName,balance
+        --file /opt/backups/accounts.csv
+        --drop
+        -u writeUser -p passwd --authenticationDatabase admin
+
+**更新旧文档--upsertFields**
+
+    mongoimport --db test --collection importAccounts
+        --type csv
+        --fields firstName,lastName,balance
+        --file /opt/backups/accounts.csv
+        -u writeUser -p passwd --authenticationDatabase admin
+        --upsertFields name.firstName,lastName
+        
+注意:mongo会默认去比对主键_id是否重复,但这里的文档没有指明主键,需要我们指定条件--upsertFields去更新,而不是重复插入
+
+**查看导入json文件**
+
+    mongoimport --db test --collection importAccounts
+        --type json
+        --file /opt/backups/accounts.json
+        -u writeUser -p passwd --authenticationDatabase admin
+        --upsertFields name.firstName,lastName
+
+**使用--stopOnError, --maintainInsertionOrder选项**
+
+    --stopOnError 如果出现错误立即停止导入
+    --maintainInsertionOrder 按照文件中顺序进行导入
+
+
+    mongoimport --db test --collection importAccounts
+        --type json
+        --file /opt/backups/accounts.json
+        -u writeUser -p passwd --authenticationDatabase admin
+        --upsertFields name.firstName,lastName
+        --stopOnError
+        --maintainInsertionOrder
+
+## 数据库状态监控
+
+### mongostat
+
+    显示数据库服务器进程状态
+    需要对操作的数据库具备clusterMonitor角色的权限
+    
+使用mongo shell创建具有mongostat角色的权限
+
+    use admin;
+    db.createUser(
+        {
+            user: "monitorUser",
+            pwd: "passwd",
+            roles: ["clusterMonitor"]
+        }
+    )
+    
+显示数据库进程状态
+
+    mongostat --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin
+
+每隔3秒报告一次状态
+
+    mongostat --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin 3
+    
+限制报告状态的次数--rowcount 5 3(每隔3秒抓取一次,显示5次)
+
+    mongostat --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin --rowcount 5 3
+    
+有选择的显示状态
+
+    mongostat --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin -o "command,dirty,used,vsed,res,conn,time"
+    
+    command-每秒执行的命令数
+    dirty, used-数据库引擎缓存的使用量百分比
+    vsize-虚拟内存使用量MB
+    res-常驻内存使用量MB
+    conn-连接数
+    
+### mongotop
+
+显示各个集合上的读写时间
+
+    mongotop --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin
+    
+每隔3秒报告一次状态
+
+    mongotop --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin 3
+    
+限制报告状态的次数--rowcount 5 3(每隔3秒抓取一次,显示5次)
+
+    mongotop --host localhost --port 27017 -u monitorUser -p passwd --authenticationDatabase admin --rowcount 5 3
 
 # 第12章 MongoDB之故障诊断
 
@@ -4022,3 +4185,37 @@ mongoimport
 ![img]( ./img/31.png "确定开发技术栈")
 
 我们知道mongodb每一个连接,每一个集合,都需要文件描述器,如果文件描述器总量是2000个话,所以留个连接数就少了
+
+# 事务
+
+**事务的概述及特点**
+
+    数据库代表状态,事务代表要改变这个状态,一个事务有1个或者多个操作,但是这些操作构成了完整的操作
+    
+        原子性
+        一致性
+        持久性
+        隔离性
+
+原子性
+
+    事务中操作要么全部成功,要么全部失败
+    
+一致性
+    
+    一件事务改变数据库状态,如果全部执行完,数据库状态和预期的一样
+    
+隔离性
+
+    高并发情况下,交叉执行并发事务,保证一个事务执行完后在执行另一个事务
+    
+持久新
+
+    要求事务执行完后,要求数据库的数据永久保留数据
+    
+**跨文档事务**
+
+    mongo4.0单文档事务->跨文档事务
+    mongo4.2复制集事务->分片集群事务
+    
+    
