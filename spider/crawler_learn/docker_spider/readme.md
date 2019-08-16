@@ -2,6 +2,7 @@
 ![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/dkd.png)
 
 # docker
+    docker login 登录dockerhub
     docker search ubuntu 搜索镜像
     docker images 查看镜像
     docker pull ubuntu 下载镜像
@@ -18,7 +19,7 @@
     docker rm -v $(docker ps -aq -f status=exited) 批量删除所有已经退出的容器
     docker rmi 删除镜像
 
-##docker run -it centos /bin/bash
+##docker run -it centos /bin/bash 详解
 
 按照顺序，Docker做了这些事情：
     1）拉取centos镜像: Docker检查centos镜像是否存在，如果在本地没有该镜像，Docker会从Docker Hub下载。如果镜像已经存在，Docker会使用它来创建新的容器。
@@ -31,7 +32,7 @@
 
 更多：http://www.yujzw.com/docker/docker-help.html
 
-# docker部署
+# docker部署一个web服务
     docker search httpd 
     docker run -d -p 80 httpd (-d：后台运行容器，并返回容器id，也即启动守护式容器：)
     docker run -d -p 8080:80 httpd (8080是宿主机端口，80是容器的端口)
@@ -58,9 +59,11 @@ https://github.com/appium/appium-docker-android
 ## appium容器连接手机
     先本地设置usb连接改变ip地址连接 adb -s deviceName设备名称 tcpip 5555
     
-    appium容器连接手机 docker exec -it container-appium adb connect 手机ip地址:端口
+    appium容器连接手机 docker exec -it 容器名 adb connect 手机ip地址:端口
     
-    查看是否连接 docker exec -it container-appium adb devices
+    查看是否连接 docker exec -it 容器名 adb devices
+
+    断开连接 docker exec -it 容器名 adb kill-server
     
     测试脚本：
     from appium import webdriver
@@ -80,4 +83,82 @@ https://github.com/appium/appium-docker-android
     docker exec -it 容器名称 /bin/bash
     cd /var/log
     tail -f appium.log
+
+    最后可以换成usb连接 adb usb
+
+## docker commit 构建新的镜像（实战项目中不实用）
+    docker run --name web1 -d -p 8080:80 nginx 创建nginx服务
+    docker exec -it web1 /bin/bash 进入容器
+    echo "hello,docker!" >/usr/share/nginx/html/index.html 重定向nginx首页
+    docker diff web1 查看改动的内容
+    docker commit -a="作者" -m="更新内容" web1 新镜像名:版本 创建新的镜像
+    docker history 新镜像名:版本 查看做了哪些操作
+
+## dockerfile 创建构建新的镜像（实战）
+Dockerfile 是一个文本文件，其内包含了一条条的指令，每一条指令构建一层，因此每一条指令的内容，就是描述该层应当如何构建。
+
+    touch Dockerfile 创建文件
+
+    Dockerfile文件内容：
+    FROM nginx
+    //将内容写入到index.html
+    RUN echo 'hello world!' > /usr/share/nginx/html/index.html
+
+    docker build -t nginx:v3 . 构建镜像
+
+### FROM 指定基础镜像
+基础镜像是必须指定的。而 FROM 就是指定基础镜像，因此一个 Dockerfile 中 FROM 是必备的指令，并且必须是第一条指令。
+
+### RUN指令的两种模式（注意：run是每一层的构建，不是在写sell脚本）
+RUN 指令是用来执行命令行命令的。由于命令行的强大能力，RUN 指令在定制镜像时是最常用的指令之一
+
+    shell 格式：RUN <命令>，就像直接在命令行中输入的命令一样。
+    exec 格式：RUN ["可执行文件", "参数1", "参数2"]，这更像是函数调用中的格式。
+
+良好的格式：最后有清理无关的文件
+
+![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/dockerfil.png)
+
+## 将镜像上传到dockerhub
+    1、登录dockerhub
+    2、创建仓库 crate repository
+    3、查看本地是否登录 dockerhub docker info
+    4、该本地镜像的标签/版本 docker tag nginx:v3 dockerhub的仓库:版本
+    5、上传到仓库 docker push dockerhub的仓库:版本
+
+## 打造多任务端app应用数据抓取系统
+    1、下载mongo，appium，python环境镜像
+
+    2、启动python镜像创建python爬虫容器 并将python代码映射到容器中
+    docker run -it -v 本地文件路径:容器目录（/root/） --name python 450120127/pythonv2 /bin/bash
+
+    3、启动python镜像创建mitmdump容器 
+    docker run --rm -it -v 本地文件路径:容器目录（/root/） -p 8889:8889 --name mitmdump 450120127/pythonv2 
+    docker exec -it 容器名 mitmdump -s /root/decode_data.py
+
+    4、启动appium镜像创建appium容器
+    docker run --privileged -d -p 4723:4723 --name appium_douyin appium/appium
+    docker run --privileged -d -p 4725:4723 --name appium_kuaishou appium/appium
+    docker run --privileged -d -p 4727:4723 --name appium_jrtt appium/appium
+
+    5、启动mongo镜像创建mongo容器
+    docker run -p 27017:27017 -v 本地文件路径:容器目录（/root/） -d --name mongodb mongo
+    或者docker run --name mongo -d mongo默认会在 27017 端口启动数据库
+
+    6、准备3个手机并且usb连接改成tcpip方式连接
+    adb -s deviceName设备名称 tcpip 5555
+    adb -s deviceName设备名称 tcpip 5555
+    adb -s deviceName设备名称 tcpip 5555
+
+    7、appium容器连接手机
+    docker exec -it 容器名 adb connect 手机ip地址:端口
+    docker exec -it 容器名 adb connect 手机ip地址:端口
+    docker exec -it 容器名 adb connect 手机ip地址:端口
+
+    8、检查相应的python代码 deviceName ，port
+
+    9、运行python爬虫容器的爬虫文件
+    docker exec -it 容器名 python 脚本.py
+
+
     
