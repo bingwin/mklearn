@@ -4,7 +4,7 @@ Android sdk 指的是android专属的软件开发工具包
 
 设置JAVA环境变量--》windows控制面板-》高级系统设置--》环境变量
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/hjblzz.png)
+![Image text](../readme_img/hjblzz.png)
 ```bash
 变量名：Path
 变量值：C:\ProgramData\Oracle\Java\javapath;%java_home%\bin;%java_home%\jre\bin
@@ -46,7 +46,7 @@ cmd--》adb--》检查是否安装成功
 * 查看当前连接的安卓设备 adb devices
 * 进入手机文件 adb -s 设备名称 shell
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/adb-t.png)
+![Image text](../readme_img/adb-t.png)
 
 操作符$代表没有root权限，#代表有root权限
 

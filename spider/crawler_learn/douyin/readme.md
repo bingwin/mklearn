@@ -42,7 +42,7 @@ https://github.com/Fuzion24/JustTrustMe/releases/tag/v.2
 
 中文用户名解码方式：
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/jm.png)
+![Image text](../readme_img/jm.png)
 
 ## mitmproxy抓包拿取api数据
 
@@ -88,7 +88,7 @@ https://github.com/luzhisheng/crawler_learn/blob/master/douyin/douyin_appium.py
     注意事项:
         1、模拟器连接端口（第一个模拟器端口是62001，第二个模拟器端口是62025，第三个是62025+1）
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/dk1.png)
+![Image text](../readme_img/dk1.png)
 
         2、appium客户端设置udid
         3、appium服务端设置bootstrapPort（设备appium服务通讯的端口）

@@ -1,5 +1,5 @@
 # 打造多任务端app应用数据抓取系统架构图
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/dkd.png)
+![Image text](../readme_img/dkd.png)
 
 # docker
     docker login 登录dockerhub
@@ -117,7 +117,7 @@ RUN 指令是用来执行命令行命令的。由于命令行的强大能力，R
 
 良好的格式：最后有清理无关的文件
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/dockerfil.png)
+![Image text](../readme_img/dockerfil.png)
 
 ## 将镜像上传到dockerhub
     1、登录dockerhub

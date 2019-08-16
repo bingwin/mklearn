@@ -1,6 +1,6 @@
 Appium是一个开源测试自动化框架，可用于原生，混合和移动Web应用程序测试。 它使用WebDriver协议驱动iOS，Android应用程序。
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/appium.png)
+![Image text](../readme_img/appium.png)
 
 # appium
 * appium是一个自动化测试开源工具，支持ios平台和android平台的原生应用，web应用和混合应用

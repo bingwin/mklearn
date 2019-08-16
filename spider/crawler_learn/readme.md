@@ -183,7 +183,7 @@ https://sj.qq.com/myapp/detail.htm?apkName=app.greyshirts.sslcapture
 ## 断点设置
 1、通过图形界面设置断点（不推荐），会拦截到所有的请求，命令状态栏：可以指定拦截某个域名
 
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/duandian1.png)
+![Image text](./readme_img/duandian1.png)
 
 rulos --》automatic breakpoints --》请求拦截 befere requests --》可以编辑请求头 --》run to comp
 
@@ -201,7 +201,7 @@ rulos --》automatic breakpoints --》响应拦截 after responses --》choose r
 清除响应拦截：bpa
 
 3、通过fiddle设置网页的重定向
-![Image text](https://raw.githubusercontent.com/luzhisheng/crawler_learn/master/readme_img/cdx.png)
+![Image text](./readme_img/cdx.png)
 
 ## 手机抓包
 1. 手机连接pc电脑无线网络
