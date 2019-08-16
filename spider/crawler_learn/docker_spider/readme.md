@@ -22,6 +22,7 @@
 ##docker run -it centos /bin/bash 详解
 
 按照顺序，Docker做了这些事情：
+
     1）拉取centos镜像: Docker检查centos镜像是否存在，如果在本地没有该镜像，Docker会从Docker Hub下载。如果镜像已经存在，Docker会使用它来创建新的容器。
     2）创建新的容器: 当Docker有了这个镜像之后，Docker会用它来创建一个新的容器。
     3）分配文件系统并且挂载一个可读写的层: 容器会在这个文件系统中创建，并且一个可读写的层被添加到镜像中。
